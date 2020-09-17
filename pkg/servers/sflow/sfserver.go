@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"runtime/debug"
 	"sync"
 	"time"
 	"unsafe"
@@ -158,6 +159,8 @@ func (sfs *SflowServer) startService(numReaders int) {
 
 // Stop closes the socket and stops the workers
 func (sfs *SflowServer) Stop() {
+	log.Info("Stopping SflowServer")
+	debug.PrintStack()
 	close(sfs.stopCh)
 	sfs.aggregator.stop()
 	sfs.conn.Close()
@@ -178,8 +181,12 @@ func (sfs *SflowServer) packetWorker() error {
 		}
 
 		if err != nil {
-			panic(err)
 			return errors.Wrap(err, "ReadFromUDP failed")
+		}
+
+		remote4 := remote.IP.To4()
+		if remote4 != nil {
+			remote.IP = remote4
 		}
 
 		remoteAddr, err := bnet.IPFromBytes([]byte(remote.IP))

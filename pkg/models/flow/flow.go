@@ -25,6 +25,8 @@ type Flow struct {
 	NextHop    bnet.IP
 	SrcPfx     bnet.Prefix
 	DstPfx     bnet.Prefix
+	VRFIn      uint64
+	VRFOut     uint64
 }
 
 // Add adds up to flows
