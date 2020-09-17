@@ -83,8 +83,8 @@ func (c *ClickHouseGateway) createSchemaIfNotExists() error {
 	return nil
 }
 
-// Insert inserts flows into clickhouse
-func (c *ClickHouseGateway) Insert(flows []*flow.Flow) error {
+// InsertFlows inserts flows into clickhouse
+func (c *ClickHouseGateway) InsertFlows(flows []*flow.Flow) error {
 	tx, err := c.db.Begin()
 	if err != nil {
 		return errors.Wrap(err, "Begin failed")

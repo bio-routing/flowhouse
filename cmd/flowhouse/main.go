@@ -85,7 +85,7 @@ func main() {
 			}
 		}
 
-		err := chg.Insert(flows)
+		err := chg.InsertFlows(flows)
 		if err != nil {
 			log.WithError(err).Error("Insert failed")
 		}
