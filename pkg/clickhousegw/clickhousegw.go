@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net"
+	"strings"
 
 	"github.com/bio-routing/flowhouse/cmd/flowhouse/config"
 	"github.com/bio-routing/flowhouse/pkg/models/flow"
@@ -40,15 +41,45 @@ func New(cfg *config.Clickhouse) (*ClickHouseGateway, error) {
 		db: c,
 	}
 
-	err = chgw.createSchemaIfNotExists()
+	err = chgw.createFlowsSchemaIfNotExists()
 	if err != nil {
-		return nil, errors.Wrap(err, "Unable to create schema")
+		return nil, errors.Wrap(err, "Unable to create flows schema")
+	}
+
+	err = chgw.createInterfacesSchemaIfNotExists()
+	if err != nil {
+		return nil, errors.Wrap(err, "Unable to create interfaces schema")
 	}
 
 	return chgw, nil
 }
 
-func (c *ClickHouseGateway) createSchemaIfNotExists() error {
+func (c *ClickHouseGateway) createInterfacesSchemaIfNotExists() error {
+	_, err := c.db.Exec(`
+	CREATE TABLE IF NOT EXISTS ifnames (
+		agent      IPv6,
+		id         UInt32,
+		name       String,
+		rdev       String,
+		rif        String,
+		ri         String,
+		role       String,
+		timestamp  DateTime
+	) ENGINE = MergeTree()
+	PARTITION BY toYYYYMMDD(timestamp)
+	ORDER BY (timestamp)
+	TTL timestamp + INTERVAL 365 DAY
+	SETTINGS index_granularity = 8192
+	`)
+
+	if err != nil {
+		return errors.Wrap(err, "Query failed")
+	}
+
+	return nil
+}
+
+func (c *ClickHouseGateway) createFlowsSchemaIfNotExists() error {
 	_, err := c.db.Exec(`
 		CREATE TABLE IF NOT EXISTS flows (
 			agent           IPv6,
@@ -142,4 +173,83 @@ func addrToNetIP(addr *bnet.IP) net.IP {
 // Close closes the database handler
 func (c *ClickHouseGateway) Close() {
 	c.db.Close()
+}
+
+func (c *ClickHouseGateway) GetColumnValues(columnName string) ([]string, error) {
+	columnName = strings.Replace(columnName, " ", "", -1)
+
+	query := fmt.Sprintf("SELECT %s FROM flows GROUP BY %s", columnName, columnName)
+	res, err := c.db.Query(query)
+
+	if err != nil {
+		return nil, errors.Wrap(err, "Exec failed")
+	}
+
+	result := make([]string, 0)
+
+	for {
+		v := ""
+		res.Scan(&v)
+
+		result = append(result, v)
+		if !res.Next() {
+			break
+		}
+	}
+
+	return result, nil
+}
+
+// GetDictValues gets all values of a certain dicts attribute
+func (c *ClickHouseGateway) GetDictValues(dictName string, attr string) ([]string, error) {
+	dictName = strings.Replace(dictName, " ", "", -1)
+	attr = strings.Replace(attr, " ", "", -1)
+
+	query := fmt.Sprintf("SELECT %s FROM dictionaries.%s GROUP BY %s", attr, dictName, attr)
+	res, err := c.db.Query(query)
+
+	if err != nil {
+		return nil, errors.Wrap(err, "Exec failed")
+	}
+
+	result := make([]string, 0)
+
+	for {
+		v := ""
+		res.Scan(&v)
+
+		result = append(result, v)
+		if !res.Next() {
+			break
+		}
+	}
+
+	return result, nil
+}
+
+// DescribeDict gets the names of all fields in a dictionary
+func (c *ClickHouseGateway) DescribeDict(dictName string) ([]string, error) {
+	dictName = strings.Replace(dictName, " ", "", -1)
+
+	query := fmt.Sprintf("DESCRIBE dictionaries.%s", dictName)
+	res, err := c.db.Query(query)
+
+	if err != nil {
+		return nil, errors.Wrap(err, "Exec failed")
+	}
+
+	result := make([]string, 0)
+
+	for {
+		name := ""
+		trash := ""
+		res.Scan(&name, &trash, &trash, &trash, &trash, &trash, &trash)
+
+		result = append(result, name)
+		if !res.Next() {
+			break
+		}
+	}
+
+	return result, nil
 }
