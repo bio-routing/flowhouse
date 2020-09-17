@@ -20,6 +20,7 @@ type Config struct {
 	RISTimeout  uint64      `yaml:"ris_timeout"`
 	ListenSFlow string      `yaml:"listen_sflow"`
 	ListenHTTP  string      `yaml:"listen_http"`
+	Dicts       []*Dict     `yaml:"dicts"`
 	Routers     []*Router   `yaml:"routers"`
 	Clickhouse  *Clickhouse `yaml:"clickhouse"`
 }
@@ -31,6 +32,12 @@ type Clickhouse struct {
 	User     string `yaml:"user"`
 	Password string `yaml:"password"`
 	Database string `yaml:"database"`
+}
+
+// Dict connects a fields with a dict
+type Dict struct {
+	Field string `yaml:"field"`
+	Dict  string `yaml:"dict"`
 }
 
 func (c *Config) load() error {
