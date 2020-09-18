@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"net/url"
 	"sort"
 	"strings"
 
@@ -101,6 +102,13 @@ func New(chgw *clickhousegw.ClickHouseGateway, dictCfgs []*config.Dict) *Fronten
 }
 
 func (fe *Frontend) IndexHandler(w http.ResponseWriter, r *http.Request) {
+	fields := fe.dissectIndexQuery(r.URL.Query())
+	fmt.Printf("Fields: %v\n", fields)
+
+	query := fieldsToQuery(r.URL.Query())
+	fmt.Printf("Query: %s\n", query)
+	_ = query
+
 	templateAsset, err := assetsIndexHtml()
 	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
@@ -130,6 +138,39 @@ func (fe *Frontend) IndexHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Write(buf.Bytes())
+}
+
+func fieldsToQuery(fields url.Values) string {
+	groupBy := make([]string, 0)
+	if breakdown, ok := fields["breakdown"]; ok {
+		for _, f := range breakdown {
+			groupBy = append(groupBy, f)
+		}
+	}
+
+	// TODO: Build field list including dict lookups
+
+	// TODO: Build confitions list
+
+	q := "SELECT %s FROM flows WHERE %s GROUP BY %s"
+
+	return fmt.Sprintf(q, fields, conditions, strings.Join(groupBy, ", ")
+}
+
+
+func (fe *Frontend) dissectIndexQuery(values url.Values) map[string][]string {
+	fields := make(map[string][]string)
+	for k, v := range values {
+		fmt.Printf("k = %q, v = %q\n", k, v)
+
+		if strings.HasPrefix(k, "filter_field") {
+			continue
+		}
+
+		fields[k] = v
+	}
+
+	return fields
 }
 
 func (fe *Frontend) getIndexData() (*IndexData, error) {

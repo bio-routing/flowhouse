@@ -75,7 +75,7 @@
           <div style="visibility:hidden" id="filterTemplate">
             <div class="row" id="filter_row[__NUM__]">
               <div class="col-auto">
-                <select id="filter_field[__NUM__]" class="form-control m-1">
+                <select id="filter_field[__NUM__]" name="filter_field[__NUM__]" class="form-control m-1">
 {{- range .FieldGroups }}
                   <optgroup label="{{ .Label }}">
 {{- range .Fields }}
@@ -122,6 +122,8 @@ $(document).ready(function() {
         selectName.lastIndexOf("[") + 1,
         selectName.lastIndexOf("]")
       );
+
+      $("#filter_value\\[" + filterNum + "\\]").attr("name", fieldName);
       loadValues(filterNum, fieldName);
     });
 
