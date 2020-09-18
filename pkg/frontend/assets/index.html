@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" >
+    <link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+    <title>Flowhouse</title>
+  </head>
+  <body>
+    <nav class="navbar navbar-dark sticky-top bg-dark flex-md-nowrap p-0">
+      <a class="navbar-brand col-sm-3 col-md-2 mr-0" href="#">Flowhouse</a>
+    </nav>
+    <div class="container-fluid">
+      <div class="row">
+        <div class="col-md-2 d-none d-md-block bg-light sidebar p-1">
+          <div class="sidebar-sticky">
+            <form>
+            <fieldset>
+              <fieldset class="form-group">
+                <legend>Time</legend>
+                <div class="row">
+                  <div class="col">
+                    <label for="Timestamp_gt">Start</label>
+                    <input type="datetime-local" class="form-control m-1 p-1" id="Timestamp_gt">
+                  </div>
+                  <div class="col">
+                    <label for="Timestamp_lt">End</label>
+                    <input type="datetime-local" class="form-control m-1 p-1" id="Timestamp_lt">
+                  </div>
+                </div>
+              </fieldset>
+
+              <fieldset class="form-group">
+                <legend>Filter</legend>
+                <div id="filters">
+                </div>
+                <div class="row">
+                  <div class="col">
+                    <button type="button" id="filterPlus" class="btn btn-primary btn-sm m-1">+</button>
+                  </div>
+                </div>
+              </fieldset>
+              <fieldset class="form-group">
+                <legend>Breakdown</legend>
+                <div id="breakdowns">
+                  <div class="row">
+                    <div class="col">
+                      <select name="breakdown" id="breakdown" class="form-control m-1  custom-select" multiple size="{{ .BreakDownLen }}">
+      {{- range .FieldGroups }}
+                        <optgroup label="{{ .Label }}">
+      {{- range .Fields }}
+                          <option value="{{ .Name }}">{{ .Label }}</option>
+      {{- end }}
+                        </optgroup>
+      {{- end }}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </fieldset>
+              <input type="submit" value="Run Query" id="submit">
+            </fieldset>
+          </form>
+        </div>
+      </div>
+      <main class="col-md-9 ml-sm-auto col-lg-10 pt-3 px-4">
+        <h1>Here be content</h1>
+      </main>
+      </div>
+      
+
+
+      </div>
+          <div style="visibility:hidden" id="filterTemplate">
+            <div class="row" id="filter_row[__NUM__]">
+              <div class="col-auto">
+                <select id="filter_field[__NUM__]" class="form-control m-1">
+{{- range .FieldGroups }}
+                  <optgroup label="{{ .Label }}">
+{{- range .Fields }}
+                    <option value="{{ .Name }}">{{ .Label }}</option>
+{{- end }}
+                  </optgroup>
+{{- end }}
+                </select>
+              </div>
+              <div class="col-auto">
+                <input type="text" class="form-control m-1" name="filter_value[__NUM__]" id="filter_value[__NUM__]">
+              </div>
+              <div class="col-auto">
+                <button type="button" value="__NUM__" id="filter_remove[__NUM__]" class="btn btn-secondary btn-sm m-1">-</button>
+              </div>
+            </div>
+          </div>
+          
+      <script src="https://code.jquery.com/jquery-3.1.1.min.js" ></script>
+      <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+      <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+      <script>
+var filtersCount = 0;
+
+$(document).ready(function() {
+  var start = formatTimestamp(new Date(((new Date() / 1000) - 900 - new Date().getTimezoneOffset() * 60)* 1000));
+  if ($("#Timestamp_gt").val() == "") {
+    $("#Timestamp_gt").val(start);
+  }
+
+  var end = formatTimestamp(new Date(((new Date() / 1000) - new Date().getTimezoneOffset() * 60)* 1000));
+  if ($("#Timestamp_lt").val() == "") {
+    $("#Timestamp_lt").val(end);
+  }
+
+  $("#filterPlus").click(function () {
+    $("#filters").append($("#filterTemplate").html().replace(/__NUM__/g, filtersCount));
+
+    $("#filter_field\\[" + filtersCount + "\\]").change(function () {
+      fieldName = $(this).val();
+
+      selectName = $(this).attr("id");
+      filterNum = selectName.substring(
+        selectName.lastIndexOf("[") + 1,
+        selectName.lastIndexOf("]")
+      );
+      loadValues(filterNum, fieldName);
+    });
+
+    $("#filter_remove\\[" + filtersCount + "\\]").click(function () {
+      $("#filter_row\\[" + $(this).val() + "\\]").remove();
+    });
+
+    filtersCount++;
+  });
+});
+
+function formatTimestamp(date) {
+  return date.toISOString().substr(0, 16)
+}
+
+function loadValues(filterNum, field) {
+    return $.getJSON("/dict_values/"+field, function(data) {
+        $("#filter_value\\[" + filterNum + "\\]").autocomplete({
+            source: data,
+        });
+    });
+}
+      </script>
+   </body>
+</html>

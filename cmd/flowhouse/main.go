@@ -11,6 +11,7 @@ import (
 	"github.com/bio-routing/bio-rd/util/grpc/clientmanager"
 	"github.com/bio-routing/flowhouse/cmd/flowhouse/config"
 	"github.com/bio-routing/flowhouse/pkg/clickhousegw"
+	"github.com/bio-routing/flowhouse/pkg/frontend"
 	"github.com/bio-routing/flowhouse/pkg/ipannotator"
 	"github.com/bio-routing/flowhouse/pkg/models/flow"
 	"github.com/bio-routing/flowhouse/pkg/routemirror"
@@ -65,7 +66,11 @@ func main() {
 	//defer sfs.Stop()
 	_ = sfs
 
+	fe := frontend.New(chg, cfg.Dicts)
+
 	http.Handle("/metrics", promhttp.Handler())
+	http.HandleFunc("/", fe.IndexHandler)
+	http.HandleFunc("/dict_values/", fe.GetDictValues)
 	go http.ListenAndServe(cfg.ListenHTTP, nil)
 	log.WithField("address", cfg.ListenHTTP).Info("Listening for HTTP requests")
 

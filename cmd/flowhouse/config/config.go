@@ -21,6 +21,7 @@ type Config struct {
 	ListenSFlow string      `yaml:"listen_sflow"`
 	ListenHTTP  string      `yaml:"listen_http"`
 	Dicts       []*Dict     `yaml:"dicts"`
+	Joins       []*Join     `yaml:"joins"`
 	Routers     []*Router   `yaml:"routers"`
 	Clickhouse  *Clickhouse `yaml:"clickhouse"`
 }
@@ -32,6 +33,19 @@ type Clickhouse struct {
 	User     string `yaml:"user"`
 	Password string `yaml:"password"`
 	Database string `yaml:"database"`
+}
+
+// Join represents a join config
+type Join struct {
+	Field      string            `yaml:"field"`
+	Table      string            `yaml:"table"`
+	Conditions []*JoinConditions `yaml:"conditions"`
+}
+
+// JoinConditions represents a join config's condition
+type JoinConditions struct {
+	FlowsField string `yaml:"flows_field"`
+	ForeignKey string `yaml:"foreign_key"`
 }
 
 // Dict connects a fields with a dict

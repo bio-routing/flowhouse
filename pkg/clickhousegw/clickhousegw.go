@@ -85,15 +85,15 @@ func (c *ClickHouseGateway) createFlowsSchemaIfNotExists() error {
 			agent           IPv6,
 			int_in          UInt32,
 			int_out         UInt32,
-			src_addr        IPv6,
-			dst_addr        IPv6,
+			src_ip_addr     IPv6,
+			dst_ip_addr     IPv6,
 			src_prefix_addr IPv6,
 			src_prefix_len  UInt8,
 			dst_prefix_addr IPv6,
 			dst_prefix_len  UInt8,
 			src_asn         UInt32,
 			dst_asn         UInt32,
-			protocol        UInt8,
+			ip_protocol     UInt8,
 			src_port        UInt16,
 			dst_port        UInt16,
 			timestamp       DateTime,
@@ -121,7 +121,7 @@ func (c *ClickHouseGateway) InsertFlows(flows []*flow.Flow) error {
 		return errors.Wrap(err, "Begin failed")
 	}
 
-	stmt, err := tx.Prepare("INSERT INTO flows (agent, int_in, int_out, src_addr, dst_addr, src_prefix_addr, src_prefix_len, dst_prefix_addr, dst_prefix_len, src_asn, dst_asn, protocol, src_port, dst_port, timestamp, size, packets, samplerate) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+	stmt, err := tx.Prepare("INSERT INTO flows (agent, int_in, int_out, src_ip_addr, dst_ip_addr, src_prefix_addr, src_prefix_len, dst_prefix_addr, dst_prefix_len, src_asn, dst_asn, ip_protocol, src_port, dst_port, timestamp, size, packets, samplerate) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
 	if err != nil {
 		return errors.Wrap(err, "Prepare failed")
 	}
@@ -232,6 +232,30 @@ func (c *ClickHouseGateway) DescribeDict(dictName string) ([]string, error) {
 	dictName = strings.Replace(dictName, " ", "", -1)
 
 	query := fmt.Sprintf("DESCRIBE dictionaries.%s", dictName)
+	res, err := c.db.Query(query)
+
+	if err != nil {
+		return nil, errors.Wrap(err, "Exec failed")
+	}
+
+	result := make([]string, 0)
+
+	for res.Next() {
+		name := ""
+		trash := ""
+		res.Scan(&name, &trash, &trash, &trash, &trash, &trash, &trash)
+
+		result = append(result, name)
+	}
+
+	return result, nil
+}
+
+// DescribeTable gets the names of all fields of a table
+func (c *ClickHouseGateway) DescribeTable(tableName string) ([]string, error) {
+	tableName = strings.Replace(tableName, " ", "", -1)
+
+	query := fmt.Sprintf("DESCRIBE %s", tableName)
 	res, err := c.db.Query(query)
 
 	if err != nil {
