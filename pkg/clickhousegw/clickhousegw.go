@@ -17,7 +17,8 @@ import (
 
 // ClickHouseGateway is a wrapper for Clickhouse
 type ClickHouseGateway struct {
-	db *sql.DB
+	dbName string
+	db     *sql.DB
 }
 
 // New instantiates a new ClickHouseGateway
@@ -38,7 +39,8 @@ func New(cfg *config.Clickhouse) (*ClickHouseGateway, error) {
 	}
 
 	chgw := &ClickHouseGateway{
-		db: c,
+		dbName: cfg.Database,
+		db:     c,
 	}
 
 	err = chgw.createFlowsSchemaIfNotExists()
@@ -276,4 +278,14 @@ func (c *ClickHouseGateway) DescribeTable(tableName string) ([]string, error) {
 	}
 
 	return result, nil
+}
+
+// GetDatabaseName gets the databases name
+func (c *ClickHouseGateway) GetDatabaseName() string {
+	return c.dbName
+}
+
+// Query executs an SQL query
+func (c *ClickHouseGateway) Query(q string) (*sql.Rows, error) {
+	return c.db.Query(q)
 }

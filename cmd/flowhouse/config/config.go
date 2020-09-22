@@ -20,7 +20,7 @@ type Config struct {
 	RISTimeout  uint64      `yaml:"ris_timeout"`
 	ListenSFlow string      `yaml:"listen_sflow"`
 	ListenHTTP  string      `yaml:"listen_http"`
-	Dicts       []*Dict     `yaml:"dicts"`
+	Dicts       Dicts       `yaml:"dicts"`
 	Joins       []*Join     `yaml:"joins"`
 	Routers     []*Router   `yaml:"routers"`
 	Clickhouse  *Clickhouse `yaml:"clickhouse"`
@@ -52,6 +52,18 @@ type JoinConditions struct {
 type Dict struct {
 	Field string `yaml:"field"`
 	Dict  string `yaml:"dict"`
+}
+
+type Dicts []*Dict
+
+func (d Dicts) GetDict(field string) string {
+	for _, x := range d {
+		if x.Field == field {
+			return x.Dict
+		}
+	}
+
+	return ""
 }
 
 func (c *Config) load() error {

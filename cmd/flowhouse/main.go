@@ -67,10 +67,11 @@ func main() {
 	_ = sfs
 
 	fe := frontend.New(chg, cfg.Dicts)
-
-	http.Handle("/metrics", promhttp.Handler())
 	http.HandleFunc("/", fe.IndexHandler)
+	http.HandleFunc("/flowhouse.js", fe.FlowhouseJSHandler)
+	http.HandleFunc("/query", fe.QueryHandler)
 	http.HandleFunc("/dict_values/", fe.GetDictValues)
+	http.Handle("/metrics", promhttp.Handler())
 	go http.ListenAndServe(cfg.ListenHTTP, nil)
 	log.WithField("address", cfg.ListenHTTP).Info("Listening for HTTP requests")
 

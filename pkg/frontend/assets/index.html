@@ -21,12 +21,12 @@
                 <legend>Time</legend>
                 <div class="row">
                   <div class="col">
-                    <label for="Timestamp_gt">Start</label>
-                    <input type="datetime-local" class="form-control m-1 p-1" id="Timestamp_gt">
+                    <label for="time_start">Start</label>
+                    <input type="datetime-local" name="time_start" class="form-control m-1 p-1" id="time_start">
                   </div>
                   <div class="col">
-                    <label for="Timestamp_lt">End</label>
-                    <input type="datetime-local" class="form-control m-1 p-1" id="Timestamp_lt">
+                    <label for="time_end">End</label>
+                    <input type="datetime-local" name="time_end" class="form-control m-1 p-1" id="time_end">
                   </div>
                 </div>
               </fieldset>
@@ -65,11 +65,9 @@
         </div>
       </div>
       <main class="col-md-9 ml-sm-auto col-lg-10 pt-3 px-4">
-        <h1>Here be content</h1>
+        <div id="chart_div"></div>
       </main>
       </div>
-      
-
 
       </div>
           <div style="visibility:hidden" id="filterTemplate">
@@ -97,55 +95,8 @@
       <script src="https://code.jquery.com/jquery-3.1.1.min.js" ></script>
       <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
       <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
-      <script>
-var filtersCount = 0;
-
-$(document).ready(function() {
-  var start = formatTimestamp(new Date(((new Date() / 1000) - 900 - new Date().getTimezoneOffset() * 60)* 1000));
-  if ($("#Timestamp_gt").val() == "") {
-    $("#Timestamp_gt").val(start);
-  }
-
-  var end = formatTimestamp(new Date(((new Date() / 1000) - new Date().getTimezoneOffset() * 60)* 1000));
-  if ($("#Timestamp_lt").val() == "") {
-    $("#Timestamp_lt").val(end);
-  }
-
-  $("#filterPlus").click(function () {
-    $("#filters").append($("#filterTemplate").html().replace(/__NUM__/g, filtersCount));
-
-    $("#filter_field\\[" + filtersCount + "\\]").change(function () {
-      fieldName = $(this).val();
-
-      selectName = $(this).attr("id");
-      filterNum = selectName.substring(
-        selectName.lastIndexOf("[") + 1,
-        selectName.lastIndexOf("]")
-      );
-
-      $("#filter_value\\[" + filterNum + "\\]").attr("name", fieldName);
-      loadValues(filterNum, fieldName);
-    });
-
-    $("#filter_remove\\[" + filtersCount + "\\]").click(function () {
-      $("#filter_row\\[" + $(this).val() + "\\]").remove();
-    });
-
-    filtersCount++;
-  });
-});
-
-function formatTimestamp(date) {
-  return date.toISOString().substr(0, 16)
-}
-
-function loadValues(filterNum, field) {
-    return $.getJSON("/dict_values/"+field, function(data) {
-        $("#filter_value\\[" + filterNum + "\\]").autocomplete({
-            source: data,
-        });
-    });
-}
-      </script>
+      <script src="https://www.gstatic.com/charts/loader.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+      <script src="/flowhouse.js"></script>
    </body>
 </html>
