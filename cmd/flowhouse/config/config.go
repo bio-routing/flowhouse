@@ -17,8 +17,10 @@ const (
 
 // Config represents a config file
 type Config struct {
-	RISTimeout    uint64      `yaml:"ris_timeout"`
-	SNMPCommunity string      `yaml:"snmp_community"`
+	RISTimeout    uint64 `yaml:"ris_timeout"`
+	SNMPCommunity string `yaml:"snmp_community"`
+	DefaultVRF    string `yaml:"default_vrf"`
+	defaultVRF    uint64
 	ListenSFlow   string      `yaml:"listen_sflow"`
 	ListenHTTP    string      `yaml:"listen_http"`
 	Dicts         Dicts       `yaml:"dicts"`
@@ -80,6 +82,15 @@ func (c *Config) load() error {
 		c.ListenHTTP = listenHTTPDefault
 	}
 
+	if c.DefaultVRF != "" {
+		vrfID, err := vrf.ParseHumanReadableRouteDistinguisher(c.DefaultVRF)
+		if err != nil {
+			return errors.Wrap(err, "Unable to perse default VRF")
+		}
+
+		c.defaultVRF = vrfID
+	}
+
 	for _, r := range c.Routers {
 		err := r.load()
 		if err != nil {
@@ -88,6 +99,11 @@ func (c *Config) load() error {
 	}
 
 	return nil
+}
+
+// GetDefaultVRF gets the default VRF id
+func (c *Config) GetDefaultVRF() uint64 {
+	return c.defaultVRF
 }
 
 // Router represents a router

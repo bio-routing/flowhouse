@@ -36,7 +36,6 @@ func newRouterVRF(router *router, vrfRD uint64) *routerVRF {
 func (v *routerVRF) stop() {
 	for _, rc := range v.risClients {
 		rc.Stop()
-		rc.Wait()
 	}
 }
 

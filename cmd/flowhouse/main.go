@@ -7,7 +7,6 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/bio-routing/bio-rd/routingtable/vrf"
 	"github.com/bio-routing/bio-rd/util/grpc/clientmanager"
 	"github.com/bio-routing/flowhouse/cmd/flowhouse/config"
 	"github.com/bio-routing/flowhouse/pkg/clickhousegw"
@@ -38,14 +37,11 @@ func main() {
 	}
 	_ = cfg
 
-	fmt.Printf("Setting up client manager\n")
 	cm := setupClientManager(cfg)
 	// TODO: Add cm.Stop() function
 
-	_ = cm
-	fmt.Printf("Setting up route mirror\n")
 	rm := setupRouteMirror(cfg, cm)
-	//defer rm.Stop()
+	defer rm.Stop()
 
 	ipa := ipannotator.New(rm)
 
@@ -69,8 +65,7 @@ func main() {
 	if err != nil {
 		log.WithError(err).Panic("Unable to start sflow server")
 	}
-	//defer sfs.Stop()
-	_ = sfs
+	defer sfs.Stop()
 
 	fe := frontend.New(chg, cfg.Dicts)
 	http.HandleFunc("/", fe.IndexHandler)
@@ -81,19 +76,16 @@ func main() {
 	go http.ListenAndServe(cfg.ListenHTTP, nil)
 	log.WithField("address", cfg.ListenHTTP).Info("Listening for HTTP requests")
 
-	vrfID, _ := vrf.ParseHumanReadableRouteDistinguisher("51324:65201")
-
 	for {
 		flows := <-outCh
-		fmt.Printf("Flows: %d\n", len(flows))
 
 		for _, fl := range flows {
-			fl.VRFIn = vrfID
-			fl.VRFOut = vrfID
+			fl.VRFIn = cfg.GetDefaultVRF()
+			fl.VRFOut = cfg.GetDefaultVRF()
 
 			err := ipa.Annotate(fl)
 			if err != nil {
-				log.WithError(err).Error("Annotating failed")
+				log.WithError(err).Debug("Annotating failed")
 			}
 		}
 
