@@ -89,7 +89,7 @@ func Decode(raw []byte) (*Packet, error) {
 	}
 	p.Header = &h
 
-	flowSamples, err := decodeFlows(headerBottomPtr, h.NumSamples)
+	flowSamples, err := decodeFlowSamples(headerBottomPtr, h.NumSamples)
 	if err != nil {
 		return nil, errors.Wrap(err, "Unable to dissect flows")
 	}
@@ -102,7 +102,7 @@ func extractEnterpriseFormat(sfType uint32) (sfTypeEnterprise uint32, sfTypeForm
 	return sfType >> 12, sfType & 0xfff
 }
 
-func decodeFlows(samplesPtr unsafe.Pointer, NumSamples uint32) ([]*FlowSample, error) {
+func decodeFlowSamples(samplesPtr unsafe.Pointer, NumSamples uint32) ([]*FlowSample, error) {
 	flowSamples := make([]*FlowSample, 0)
 	for i := uint32(0); i < NumSamples; i++ {
 		sfTypeEnterprise, sfTypeFormat := extractEnterpriseFormat(*(*uint32)(unsafe.Pointer(uintptr(samplesPtr) - uintptr(4))))
@@ -152,6 +152,7 @@ func _decodeFlowSample(flowSamplePtr unsafe.Pointer, fsh *FlowSampleHeader) (*Fl
 	var rph *RawPacketHeader
 	var rphd unsafe.Pointer
 	var erd *ExtendedRouterData
+	var esd *ExtendedSwitchData
 
 	for i := uint32(0); i < fsh.FlowRecord; i++ {
 		sfTypeEnterprise, sfTypeFormat := extractEnterpriseFormat(*(*uint32)(unsafe.Pointer(uintptr(flowSamplePtr) - uintptr(4))))
@@ -171,6 +172,10 @@ func _decodeFlowSample(flowSamplePtr unsafe.Pointer, fsh *FlowSampleHeader) (*Fl
 				}
 
 			case extendedSwitchData:
+				esd, err = decodeExtendedSwitchData(flowSamplePtr)
+				if err != nil {
+					return nil, errors.Wrap(err, "Unable to decide extended switch data")
+				}
 
 			default:
 				log.Infof("Unknown sfTypeFormat %d\n", sfTypeFormat)
@@ -186,6 +191,7 @@ func _decodeFlowSample(flowSamplePtr unsafe.Pointer, fsh *FlowSampleHeader) (*Fl
 		RawPacketHeader:    rph,
 		Data:               rphd,
 		DataLen:            rph.OriginalPacketLength,
+		ExtendedSwitchData: esd,
 		ExtendedRouterData: erd,
 	}
 
@@ -223,6 +229,14 @@ func decodeExtendRouterData(erhPtr unsafe.Pointer) (*ExtendedRouterData, error) 
 		NextHopSourceMask:      erhBottom.NextHopSourceMask,
 		NextHopDestinationMask: erhBottom.NextHopDestinationMask,
 	}, nil
+}
+
+func decodeExtendedSwitchData(eshPtr unsafe.Pointer) (*ExtendedSwitchData, error) {
+	eshPtr = unsafe.Pointer(uintptr(eshPtr) - uintptr(sizeOfExtendedSwitchData))
+	esh := (*ExtendedSwitchData)(eshPtr)
+
+	eshCopy := *esh
+	return &eshCopy, nil
 }
 
 func getNetIP(headerPtr unsafe.Pointer, addressLen uint64) net.IP {

@@ -40,6 +40,7 @@ var (
 	sizeofExtendedRouterData       = unsafe.Sizeof(ExtendedRouterData{})
 	sizeOfextendedRouterDataTop    = unsafe.Sizeof(extendedRouterDataTop{})
 	sizeOfextendedRouterDataBottom = unsafe.Sizeof(extendedRouterDataBottom{})
+	sizeOfExtendedSwitchData       = unsafe.Sizeof(ExtendedSwitchData{})
 )
 
 // Header is an sflow version 5 header
@@ -72,6 +73,7 @@ type FlowSample struct {
 	RawPacketHeader          *RawPacketHeader
 	Data                     unsafe.Pointer
 	DataLen                  uint32
+	ExtendedSwitchData       *ExtendedSwitchData
 	ExtendedRouterData       *ExtendedRouterData
 }
 
@@ -150,4 +152,14 @@ type ExtendedRouterData struct {
 	AddressType            uint32
 	FlowDataLength         uint32
 	EnterpriseType         uint32
+}
+
+// ExtendedSwitchData represents sflow version 5 extended switch data
+type ExtendedSwitchData struct {
+	OutgoingPriority uint32
+	OutgoingVLAN     uint32
+	IncomingPriority uint32
+	IncomingVLAN     uint32
+	FlowDataLength   uint32
+	EnterpriseType   uint32
 }

@@ -12,7 +12,6 @@ package sflow
 
 import (
 	"fmt"
-	"net"
 	"testing"
 
 	"github.com/bio-routing/tflow2/convert"
@@ -83,7 +82,7 @@ func TestDecode(t *testing.T) {
 	}
 	s = convert.Reverse(s)
 
-	packet, err := Decode(s, net.IP([]byte{1, 1, 1, 1}))
+	packet, err := Decode(s)
 	if err != nil {
 		t.Errorf("Decoding packet failed: %v\n", err)
 	}
