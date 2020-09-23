@@ -12,8 +12,8 @@ type Flow struct {
 	SrcAs      uint32
 	DstAs      uint32
 	NextAs     uint32
-	IntIn      uint32
-	IntOut     uint32
+	IntIn      string
+	IntOut     string
 	Packets    uint64
 	Protocol   uint8
 	Family     uint8

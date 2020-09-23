@@ -2,7 +2,6 @@ package routemirror
 
 import (
 	"fmt"
-	"net"
 	"sync"
 
 	"github.com/bio-routing/bio-rd/route"
@@ -25,7 +24,7 @@ func New() *RouteMirror {
 }
 
 // AddTarget adds a target
-func (r *RouteMirror) AddTarget(name string, address net.IP, sources []*grpc.ClientConn, vrfRD uint64) {
+func (r *RouteMirror) AddTarget(name string, address bnet.IP, sources []*grpc.ClientConn, vrfRD uint64) {
 	r.routersMu.Lock()
 	defer r.routersMu.Unlock()
 
@@ -33,7 +32,7 @@ func (r *RouteMirror) AddTarget(name string, address net.IP, sources []*grpc.Cli
 	rtr.addVRFIfNotExists(vrfRD)
 }
 
-func (r *RouteMirror) addRouterIfNotExists(name string, address net.IP, sources []*grpc.ClientConn) *router {
+func (r *RouteMirror) addRouterIfNotExists(name string, address bnet.IP, sources []*grpc.ClientConn) *router {
 	if _, exists := r.routers[name]; exists {
 		return r.routers[name]
 	}

@@ -1,13 +1,13 @@
 package config
 
 import (
-	"fmt"
 	"io/ioutil"
-	"net"
 
 	"github.com/bio-routing/bio-rd/routingtable/vrf"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
+
+	bnet "github.com/bio-routing/bio-rd/net"
 )
 
 const (
@@ -17,13 +17,14 @@ const (
 
 // Config represents a config file
 type Config struct {
-	RISTimeout  uint64      `yaml:"ris_timeout"`
-	ListenSFlow string      `yaml:"listen_sflow"`
-	ListenHTTP  string      `yaml:"listen_http"`
-	Dicts       Dicts       `yaml:"dicts"`
-	Joins       []*Join     `yaml:"joins"`
-	Routers     []*Router   `yaml:"routers"`
-	Clickhouse  *Clickhouse `yaml:"clickhouse"`
+	RISTimeout    uint64      `yaml:"ris_timeout"`
+	SNMPCommunity string      `yaml:"snmp_community"`
+	ListenSFlow   string      `yaml:"listen_sflow"`
+	ListenHTTP    string      `yaml:"listen_http"`
+	Dicts         Dicts       `yaml:"dicts"`
+	Joins         []*Join     `yaml:"joins"`
+	Routers       []*Router   `yaml:"routers"`
+	Clickhouse    *Clickhouse `yaml:"clickhouse"`
 }
 
 // Clickhouse represents a clickhouse client config
@@ -93,14 +94,14 @@ func (c *Config) load() error {
 type Router struct {
 	Name         string `yaml:"name"`
 	Address      string `yaml:"address"`
-	address      net.IP
+	address      bnet.IP
 	RISInstances []string `yaml:"ris_instances"`
 	VRFs         []string `yaml:"vrfs"`
 	vrfs         []uint64
 }
 
 // GetAddress gets a routers address
-func (r *Router) GetAddress() net.IP {
+func (r *Router) GetAddress() bnet.IP {
 	return r.address
 }
 
@@ -110,9 +111,9 @@ func (r *Router) GetVRFs() []uint64 {
 }
 
 func (r *Router) load() error {
-	a := net.ParseIP(r.Address)
-	if a == nil {
-		return fmt.Errorf("Invalid router IP address %q", r.Address)
+	a, err := bnet.IPFromString(r.Address)
+	if err != nil {
+		return errors.Wrap(err, "Unable to parse IP address")
 	}
 
 	r.address = a

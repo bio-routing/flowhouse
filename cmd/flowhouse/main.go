@@ -12,6 +12,7 @@ import (
 	"github.com/bio-routing/flowhouse/cmd/flowhouse/config"
 	"github.com/bio-routing/flowhouse/pkg/clickhousegw"
 	"github.com/bio-routing/flowhouse/pkg/frontend"
+	"github.com/bio-routing/flowhouse/pkg/intfmapper"
 	"github.com/bio-routing/flowhouse/pkg/ipannotator"
 	"github.com/bio-routing/flowhouse/pkg/models/flow"
 	"github.com/bio-routing/flowhouse/pkg/routemirror"
@@ -58,8 +59,13 @@ func main() {
 	}
 	defer chg.Close()
 
+	ifMapper := intfmapper.New()
+	for _, rtr := range cfg.Routers {
+		ifMapper.AddDevice(rtr.GetAddress(), cfg.SNMPCommunity)
+	}
+
 	outCh := make(chan []*flow.Flow, 1024)
-	sfs, err := sflow.New(cfg.ListenSFlow, runtime.NumCPU(), outCh)
+	sfs, err := sflow.New(cfg.ListenSFlow, runtime.NumCPU(), outCh, ifMapper)
 	if err != nil {
 		log.WithError(err).Panic("Unable to start sflow server")
 	}

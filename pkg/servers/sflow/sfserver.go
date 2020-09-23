@@ -30,10 +30,15 @@ func init() {
 	}
 }
 
+type InterfaceResolver interface {
+	Resolve(agent bnet.IP, ifID uint32) string
+}
+
 // SflowServer represents a sflow Collector instance
 type SflowServer struct {
 	aggregator               *aggregator
 	conn                     *net.UDPConn
+	ifResolver               InterfaceResolver
 	wg                       sync.WaitGroup
 	stopCh                   chan struct{}
 	packetsReceived          *prometheus.CounterVec
@@ -51,9 +56,10 @@ type SflowServer struct {
 }
 
 // New creates and starts a new `SflowServer` instance
-func New(listen string, numReaders int, output chan []*flow.Flow) (*SflowServer, error) {
+func New(listen string, numReaders int, output chan []*flow.Flow, ifResolver InterfaceResolver) (*SflowServer, error) {
 	sfs := &SflowServer{
 		aggregator: newAggregator(output),
+		ifResolver: ifResolver,
 		packetsReceived: promauto.NewCounterVec(prometheus.CounterOpts{
 			Namespace: "flowhouse",
 			Subsystem: "sflow",
@@ -247,12 +253,21 @@ func (sfs *SflowServer) processPacket(agent bnet.IP, buffer []byte) {
 
 		fl := &flow.Flow{
 			Agent:      agent,
-			IntIn:      fs.FlowSampleHeader.InputIf,
-			IntOut:     fs.FlowSampleHeader.OutputIf,
+			IntIn:      sfs.ifResolver.Resolve(agent, fs.FlowSampleHeader.InputIf),
+			IntOut:     sfs.ifResolver.Resolve(agent, fs.FlowSampleHeader.OutputIf),
 			Size:       uint64(fs.RawPacketHeader.FrameLength),
 			Packets:    1,
 			Timestamp:  time.Now().Unix(),
 			Samplerate: uint64(fs.FlowSampleHeader.SamplingRate),
+		}
+
+		if fl.IntIn == "" {
+
+			fl.IntIn += fmt.Sprintf("%d", fs.FlowSampleHeader.InputIf)
+		}
+
+		if fl.IntOut == "" {
+			fl.IntOut += fmt.Sprintf("%d", fs.FlowSampleHeader.OutputIf)
 		}
 
 		if fs.ExtendedRouterData != nil {
@@ -260,6 +275,11 @@ func (sfs *SflowServer) processPacket(agent bnet.IP, buffer []byte) {
 			if err == nil {
 				fl.NextHop = nh
 			}
+		}
+
+		if fs.ExtendedSwitchData != nil {
+			fl.IntIn += fmt.Sprintf(".%d", fs.ExtendedSwitchData.IncomingVLAN)
+			fl.IntOut += fmt.Sprintf(".%d", fs.ExtendedSwitchData.OutgoingVLAN)
 		}
 
 		sfs.processEthernet(agentStr, ether.EtherType, fs, fl)

@@ -2,19 +2,19 @@ package routemirror
 
 import (
 	"fmt"
-	"net"
 
+	bnet "github.com/bio-routing/bio-rd/net"
 	"google.golang.org/grpc"
 )
 
 type router struct {
 	name    string
-	address net.IP
+	address bnet.IP
 	sources []*grpc.ClientConn
 	vrfs    map[uint64]*routerVRF
 }
 
-func newRouter(name string, address net.IP, sources []*grpc.ClientConn) *router {
+func newRouter(name string, address bnet.IP, sources []*grpc.ClientConn) *router {
 	return &router{
 		name:    name,
 		address: address,

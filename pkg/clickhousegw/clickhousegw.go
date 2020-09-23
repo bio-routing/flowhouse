@@ -48,51 +48,21 @@ func New(cfg *config.Clickhouse) (*ClickHouseGateway, error) {
 		return nil, errors.Wrap(err, "Unable to create flows schema")
 	}
 
-	err = chgw.createInterfacesSchemaIfNotExists()
-	if err != nil {
-		return nil, errors.Wrap(err, "Unable to create interfaces schema")
-	}
-
 	return chgw, nil
-}
-
-func (c *ClickHouseGateway) createInterfacesSchemaIfNotExists() error {
-	_, err := c.db.Exec(`
-	CREATE TABLE IF NOT EXISTS ifnames (
-		agent      IPv6,
-		id         UInt32,
-		name       String,
-		rdev       String,
-		rif        String,
-		ri         String,
-		role       String,
-		timestamp  DateTime
-	) ENGINE = MergeTree()
-	PARTITION BY toYYYYMMDD(timestamp)
-	ORDER BY (timestamp)
-	TTL timestamp + INTERVAL 365 DAY
-	SETTINGS index_granularity = 8192
-	`)
-
-	if err != nil {
-		return errors.Wrap(err, "Query failed")
-	}
-
-	return nil
 }
 
 func (c *ClickHouseGateway) createFlowsSchemaIfNotExists() error {
 	_, err := c.db.Exec(`
 		CREATE TABLE IF NOT EXISTS flows (
 			agent           IPv6,
-			int_in          UInt32,
-			int_out         UInt32,
+			int_in          String,
+			int_out         String,
 			src_ip_addr     IPv6,
 			dst_ip_addr     IPv6,
-			src_prefix_addr IPv6,
-			src_prefix_len  UInt8,
-			dst_prefix_addr IPv6,
-			dst_prefix_len  UInt8,
+			src_ip_pfx_addr IPv6,
+			src_ip_pfx_len  UInt8,
+			dst_ip_pfx_addr IPv6,
+			dst_ip_pfx_len  UInt8,
 			src_asn         UInt32,
 			dst_asn         UInt32,
 			ip_protocol     UInt8,
@@ -123,7 +93,7 @@ func (c *ClickHouseGateway) InsertFlows(flows []*flow.Flow) error {
 		return errors.Wrap(err, "Begin failed")
 	}
 
-	stmt, err := tx.Prepare("INSERT INTO flows (agent, int_in, int_out, src_ip_addr, dst_ip_addr, src_prefix_addr, src_prefix_len, dst_prefix_addr, dst_prefix_len, src_asn, dst_asn, ip_protocol, src_port, dst_port, timestamp, size, packets, samplerate) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+	stmt, err := tx.Prepare("INSERT INTO flows (agent, int_in, int_out, src_ip_addr, dst_ip_addr, src_ip_pfx_addr, src_ip_pfx_len, dst_ip_pfx_addr, dst_ip_pfx_len, src_asn, dst_asn, ip_protocol, src_port, dst_port, timestamp, size, packets, samplerate) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
 	if err != nil {
 		return errors.Wrap(err, "Prepare failed")
 	}
@@ -177,6 +147,7 @@ func (c *ClickHouseGateway) Close() {
 	c.db.Close()
 }
 
+// GetColumnValues gets all unique values of a column
 func (c *ClickHouseGateway) GetColumnValues(columnName string) ([]string, error) {
 	columnName = strings.Replace(columnName, " ", "", -1)
 

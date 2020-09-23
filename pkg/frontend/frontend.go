@@ -54,9 +54,19 @@ func init() {
 			ShortLabel: "Src.IP",
 		},
 		{
+			Name:       "src_ip_pfx",
+			Label:      "Source IP Prefix",
+			ShortLabel: "Src.IP.Pfx",
+		},
+		{
 			Name:       "dst_ip_addr",
 			Label:      "Destination IP",
 			ShortLabel: "Dst.IP",
+		},
+		{
+			Name:       "dst_ip_pfx",
+			Label:      "Destination IP Prefix",
+			ShortLabel: "Dst.IP.Pfx",
 		},
 		{
 			Name:       "src_asn",
@@ -291,7 +301,8 @@ func (fe *Frontend) fieldsToQuery(fields url.Values) (string, error) {
 	selectFieldList := make([]string, 0)
 	selectFieldList = append(selectFieldList, "timestamp as t")
 	for _, fieldName := range fields["breakdown"] {
-		statement, err := fe.resolveDictIfNecessary(fieldName)
+		resolvedFieldName := resolveVirtualField(fieldName)
+		statement, err := fe.resolveDictIfNecessary(resolvedFieldName)
 		if err != nil {
 			log.WithError(err).Warning("Unable to resolve dict. Ignoring selection")
 			continue
@@ -308,6 +319,7 @@ func (fe *Frontend) fieldsToQuery(fields url.Values) (string, error) {
 			continue
 		}
 
+		fieldName = resolveVirtualField(fieldName)
 		statement, err := fe.resolveDictIfNecessary(fieldName)
 		if err != nil {
 			log.WithError(err).Warning("Unable to resolve dict. Ignoring condition")
@@ -330,12 +342,25 @@ func (fe *Frontend) fieldsToQuery(fields url.Values) (string, error) {
 	groupBy = append(groupBy, "t")
 	if breakdown, ok := fields["breakdown"]; ok {
 		for _, f := range breakdown {
+			//f = resolveVirtualField(f)
 			groupBy = append(groupBy, f)
 		}
 	}
 
 	q := "SELECT %s FROM %s.flows WHERE %s GROUP BY %s ORDER BY t"
 	return fmt.Sprintf(q, strings.Join(selectFieldList, ", "), fe.chgw.GetDatabaseName(), strings.Join(conditions, " AND "), strings.Join(groupBy, ", ")), nil
+}
+
+func resolveVirtualField(f string) string {
+	if f == "src_ip_pfx" {
+		return "concat(IPv6NumToString(src_ip_pfx_addr), '/', toString(src_ip_pfx_len))"
+	}
+
+	if f == "dst_ip_pfx" {
+		return "concat(IPv6NumToString(dst_ip_pfx_addr), '/', toString(dst_ip_pfx_len))"
+	}
+
+	return f
 }
 
 func timeFieldToTimestamp(v string) (int64, error) {
