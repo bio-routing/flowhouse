@@ -12,7 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bio-routing/flowhouse/cmd/flowhouse/config"
 	"github.com/bio-routing/flowhouse/pkg/clickhousegw"
 	"github.com/pkg/errors"
 
@@ -99,7 +98,7 @@ func init() {
 // Frontend is a web frontend service
 type Frontend struct {
 	chgw     *clickhousegw.ClickHouseGateway
-	dictCfgs config.Dicts
+	dictCfgs Dicts
 }
 
 // IndexView is the index template data structure
@@ -119,8 +118,27 @@ type Field struct {
 	Label string
 }
 
+// Dict connects a fields with a dict
+type Dict struct {
+	Field string `yaml:"field"`
+	Dict  string `yaml:"dict"`
+}
+
+func (d Dicts) getDict(field string) string {
+	for _, x := range d {
+		if x.Field == field {
+			return x.Dict
+		}
+	}
+
+	return ""
+}
+
+// Dicts is a slice of dicts
+type Dicts []*Dict
+
 // New creates a new frontend
-func New(chgw *clickhousegw.ClickHouseGateway, dictCfgs []*config.Dict) *Frontend {
+func New(chgw *clickhousegw.ClickHouseGateway, dictCfgs Dicts) *Frontend {
 	return &Frontend{
 		chgw:     chgw,
 		dictCfgs: dictCfgs,
@@ -380,7 +398,7 @@ func (fe *Frontend) resolveDictIfNecessary(fieldName string) (string, error) {
 		return flowsFieldName, nil
 	}
 
-	dictName := fe.dictCfgs.GetDict(flowsFieldName)
+	dictName := fe.dictCfgs.getDict(flowsFieldName)
 	if dictName == "" {
 		return "", fmt.Errorf("Dict for field %s not found", fieldName)
 	}

@@ -2,6 +2,8 @@ package main
 
 import (
 	"flag"
+	"sync"
+	"time"
 
 	"github.com/bio-routing/flowhouse/cmd/flowhouse/config"
 	"github.com/bio-routing/flowhouse/pkg/flowhouse"
@@ -21,8 +23,31 @@ func main() {
 		log.WithError(err).Fatal("Unable to get config")
 	}
 
-	fh := flowhouse.New(cfg)
-	fh.Start()
+	fhcfg := &flowhouse.Config{
+		ChCfg:         cfg.Clickhouse,
+		SNMPCommunity: cfg.SNMPCommunity,
+		RISTimeout:    time.Duration(cfg.RISTimeout) * time.Second,
+		ListenSflow:   cfg.ListenSFlow,
+		ListenHTTP:    cfg.ListenHTTP,
+		DefaultVRF:    cfg.GetDefaultVRF(),
+		Dicts:         cfg.Dicts,
+	}
 
-	select {}
+	fh, err := flowhouse.New(fhcfg)
+	if err != nil {
+		log.WithError(err).Fatal("Unable to create flowhouse instance")
+	}
+
+	for _, rtr := range cfg.Routers {
+		fh.AddAgent(rtr.Name, rtr.GetAddress(), rtr.RISInstances, rtr.GetVRFs())
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		fh.Run()
+	}()
+
+	wg.Wait()
 }

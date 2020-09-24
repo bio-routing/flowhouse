@@ -4,6 +4,8 @@ import (
 	"io/ioutil"
 
 	"github.com/bio-routing/bio-rd/routingtable/vrf"
+	"github.com/bio-routing/flowhouse/pkg/clickhousegw"
+	"github.com/bio-routing/flowhouse/pkg/frontend"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 
@@ -21,52 +23,11 @@ type Config struct {
 	SNMPCommunity string `yaml:"snmp_community"`
 	DefaultVRF    string `yaml:"default_vrf"`
 	defaultVRF    uint64
-	ListenSFlow   string      `yaml:"listen_sflow"`
-	ListenHTTP    string      `yaml:"listen_http"`
-	Dicts         Dicts       `yaml:"dicts"`
-	Joins         []*Join     `yaml:"joins"`
-	Routers       []*Router   `yaml:"routers"`
-	Clickhouse    *Clickhouse `yaml:"clickhouse"`
-}
-
-// Clickhouse represents a clickhouse client config
-type Clickhouse struct {
-	Host     string `yaml:"host"`
-	Address  string `yaml:"address"`
-	User     string `yaml:"user"`
-	Password string `yaml:"password"`
-	Database string `yaml:"database"`
-}
-
-// Join represents a join config
-type Join struct {
-	Field      string            `yaml:"field"`
-	Table      string            `yaml:"table"`
-	Conditions []*JoinConditions `yaml:"conditions"`
-}
-
-// JoinConditions represents a join config's condition
-type JoinConditions struct {
-	FlowsField string `yaml:"flows_field"`
-	ForeignKey string `yaml:"foreign_key"`
-}
-
-// Dict connects a fields with a dict
-type Dict struct {
-	Field string `yaml:"field"`
-	Dict  string `yaml:"dict"`
-}
-
-type Dicts []*Dict
-
-func (d Dicts) GetDict(field string) string {
-	for _, x := range d {
-		if x.Field == field {
-			return x.Dict
-		}
-	}
-
-	return ""
+	ListenSFlow   string                         `yaml:"listen_sflow"`
+	ListenHTTP    string                         `yaml:"listen_http"`
+	Dicts         frontend.Dicts                 `yaml:"dicts"`
+	Clickhouse    *clickhousegw.ClickhouseConfig `yaml:"clickhouse"`
+	Routers       []*Router                      `yaml:"routers"`
 }
 
 func (c *Config) load() error {

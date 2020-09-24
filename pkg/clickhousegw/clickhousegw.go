@@ -6,7 +6,6 @@ import (
 	"net"
 	"strings"
 
-	"github.com/bio-routing/flowhouse/cmd/flowhouse/config"
 	"github.com/bio-routing/flowhouse/pkg/models/flow"
 	"github.com/pkg/errors"
 
@@ -21,8 +20,17 @@ type ClickHouseGateway struct {
 	db     *sql.DB
 }
 
+// ClickhouseConfig represents a clickhouse client config
+type ClickhouseConfig struct {
+	Host     string `yaml:"host"`
+	Address  string `yaml:"address"`
+	User     string `yaml:"user"`
+	Password string `yaml:"password"`
+	Database string `yaml:"database"`
+}
+
 // New instantiates a new ClickHouseGateway
-func New(cfg *config.Clickhouse) (*ClickHouseGateway, error) {
+func New(cfg *ClickhouseConfig) (*ClickHouseGateway, error) {
 	dsn := fmt.Sprintf("tcp://%s?username=%s&password=%s&database=%s&read_timeout=10&write_timeout=20", cfg.Address, cfg.User, cfg.Password, cfg.Database)
 	c, err := sql.Open("clickhouse", dsn)
 	if err != nil {
