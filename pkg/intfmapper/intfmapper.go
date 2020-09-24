@@ -27,7 +27,7 @@ func (im *IntfMapper) Resolve(agent bnet.IP, ifID uint32) string {
 	defer im.devicesMu.RUnlock()
 
 	if _, exists := im.devices[agent]; !exists {
-		log.Warningf("Device %q not found", agent.String())
+		log.Warningf("IntfMapper: Device %q not found", agent.String())
 		return ""
 	}
 

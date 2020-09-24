@@ -120,18 +120,20 @@ type Field struct {
 
 // Dict connects a fields with a dict
 type Dict struct {
-	Field string `yaml:"field"`
-	Dict  string `yaml:"dict"`
+	Field string   `yaml:"field"`
+	Dict  string   `yaml:"dict"`
+	Expr  string   `yaml:"expr"`
+	Keys  []string `yaml:"keys"`
 }
 
-func (d Dicts) getDict(field string) string {
+func (d Dicts) getDict(field string) *Dict {
 	for _, x := range d {
 		if x.Field == field {
-			return x.Dict
+			return x
 		}
 	}
 
-	return ""
+	return nil
 }
 
 // Dicts is a slice of dicts
@@ -398,12 +400,22 @@ func (fe *Frontend) resolveDictIfNecessary(fieldName string) (string, error) {
 		return flowsFieldName, nil
 	}
 
-	dictName := fe.dictCfgs.getDict(flowsFieldName)
-	if dictName == "" {
+	d := fe.dictCfgs.getDict(flowsFieldName)
+	if d == nil {
 		return "", fmt.Errorf("Dict for field %s not found", fieldName)
 	}
 
-	return fmt.Sprintf("dictGet('%s', '%s', tuple(IPv6NumToString(%s)))", dictName, relatedFieldsName, flowsFieldName), nil
+	params := make([]interface{}, 0)
+	if len(d.Keys) == 0 {
+		params = append(params, flowsFieldName)
+	} else {
+		for _, k := range d.Keys {
+			params = append(params, k)
+		}
+	}
+
+	expr := fmt.Sprintf(d.Expr, params...)
+	return fmt.Sprintf("dictGet('%s', '%s', %s)", d.Dict, relatedFieldsName, expr), nil
 }
 
 func parseFieldName(name string) (flowsFieldName, relatedFieldsName string) {
@@ -456,7 +468,12 @@ func (fe *Frontend) getIndexView() (*IndexView, error) {
 				continue
 			}
 
-			for i := 1; i < len(dictFields); i++ {
+			keyLen := 1
+			if len(d.Keys) != 0 {
+				keyLen = len(d.Keys)
+			}
+
+			for i := keyLen; i < len(dictFields); i++ {
 				fg.Fields = append(fg.Fields, &Field{
 					Name:  fmt.Sprintf("%s__%s", field.Name, dictFields[i]),
 					Label: fmt.Sprintf("%s %s", field.Label, strings.Title(dictFields[i])),
