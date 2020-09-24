@@ -1,0 +1,25 @@
+ris_timeout: 10
+listen_sflow: ":6343"
+listen_http: ":9991"
+snmp_community: "PLEASE-CHANGE-ME"
+default_vrf: "0:0"
+clickhouse:
+  address: "localhost:9000"
+  user: "PLEASE-CHANGE-ME"
+  password: "PLEASE-CHANGE-ME"
+  database: "flows"
+dicts:
+  - field: "agent"
+    dict: "ip_addrs"
+  - field: "src_ip_addr"
+    dict: "ip_addrs"
+  - field: "dst_ip_addr"
+    dict: "ip_addrs"
+  - field: "ip_protocol"
+    dict: "ip_protocols"
+routers:
+  - name: "core01.pop01"
+    address: 192.0.2.1
+    ris_instances:
+      - "ris01.pop01:4321"
+    vrfs: ["0:0"]
