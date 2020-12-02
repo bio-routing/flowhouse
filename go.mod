@@ -3,7 +3,6 @@ module github.com/bio-routing/flowhouse
 go 1.14
 
 require (
-	git.exaring.net/network/barista v0.3.4
 	github.com/ClickHouse/clickhouse-go v1.4.1
 	github.com/bio-routing/bio-rd v0.0.3-pre4
 	github.com/bio-routing/tflow2 v0.0.0-20200122091514-89924193643e
