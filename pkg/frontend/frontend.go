@@ -68,6 +68,16 @@ func init() {
 			ShortLabel: "Dst.IP.Pfx",
 		},
 		{
+			Name:       "nexthop",
+			Label:      "Nexthop",
+			ShortLabel: "Nexthop",
+		},
+		{
+			Name:       "next_asn",
+			Label:      "Next ASN",
+			ShortLabel: "Next ASN",
+		},
+		{
 			Name:       "src_asn",
 			Label:      "Source ASN",
 			ShortLabel: "Src.AS",

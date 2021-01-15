@@ -71,6 +71,8 @@ func (c *ClickHouseGateway) createFlowsSchemaIfNotExists() error {
 			src_ip_pfx_len  UInt8,
 			dst_ip_pfx_addr IPv6,
 			dst_ip_pfx_len  UInt8,
+			nexthop         IPv6,
+			next_asn        UInt32,
 			src_asn         UInt32,
 			dst_asn         UInt32,
 			ip_protocol     UInt8,
@@ -101,7 +103,7 @@ func (c *ClickHouseGateway) InsertFlows(flows []*flow.Flow) error {
 		return errors.Wrap(err, "Begin failed")
 	}
 
-	stmt, err := tx.Prepare("INSERT INTO flows (agent, int_in, int_out, src_ip_addr, dst_ip_addr, src_ip_pfx_addr, src_ip_pfx_len, dst_ip_pfx_addr, dst_ip_pfx_len, src_asn, dst_asn, ip_protocol, src_port, dst_port, timestamp, size, packets, samplerate) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+	stmt, err := tx.Prepare("INSERT INTO flows (agent, int_in, int_out, src_ip_addr, dst_ip_addr, src_ip_pfx_addr, src_ip_pfx_len, dst_ip_pfx_addr, dst_ip_pfx_len, nexthop, next_asn, src_asn, dst_asn, ip_protocol, src_port, dst_port, timestamp, size, packets, samplerate) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
 	if err != nil {
 		return errors.Wrap(err, "Prepare failed")
 	}
@@ -119,6 +121,8 @@ func (c *ClickHouseGateway) InsertFlows(flows []*flow.Flow) error {
 			fl.SrcPfx.Pfxlen(),
 			addrToNetIP(fl.DstPfx.Addr()),
 			fl.DstPfx.Pfxlen(),
+			fl.NextHop.ToNetIP(),
+			fl.NextAs,
 			fl.SrcAs,
 			fl.DstAs,
 			fl.Protocol,
