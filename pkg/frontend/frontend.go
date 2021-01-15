@@ -345,6 +345,7 @@ func (fe *Frontend) fieldsToQuery(fields url.Values) (string, error) {
 	conditions := make([]string, 0)
 	conditions = append(conditions, fmt.Sprintf("t BETWEEN toDateTime(%d) AND toDateTime(%d)", start, end))
 	for fieldName := range fields {
+		fmt.Printf("fieldName: %s\n", fieldName)
 		if fieldName == "breakdown" || fieldName == "time_start" || fieldName == "time_end" || strings.HasPrefix(fieldName, "filter_field") {
 			continue
 		}
@@ -356,20 +357,7 @@ func (fe *Frontend) fieldsToQuery(fields url.Values) (string, error) {
 			continue
 		}
 
-		if len(fields[fieldName]) == 1 {
-			if fieldName == "nexthop" || fieldName == "src_ip_addr" || fieldName == "dst_ip_addr" || fieldName == "agent" {
-				conditions = append(conditions, fmt.Sprintf("%s = '%s'", statement, fields[fieldName][0]))
-			} else {
-				conditions = append(conditions, fmt.Sprintf("%s = '%s'", statement, fields[fieldName][0]))
-			}
-		} else {
-			values := make([]string, 0)
-			for _, v := range fields[fieldName] {
-				values = append(values, fmt.Sprintf("'%s'", v))
-			}
-
-			conditions = append(conditions, fmt.Sprintf("%s IN (%s)", statement, strings.Join(values, ", ")))
-		}
+		conditions = append(conditions, formatCondition(statement, fields, fieldName))
 	}
 
 	groupBy := make([]string, 0)
@@ -383,6 +371,53 @@ func (fe *Frontend) fieldsToQuery(fields url.Values) (string, error) {
 
 	q := "SELECT %s FROM %s.flows WHERE %s GROUP BY %s ORDER BY t"
 	return fmt.Sprintf(q, strings.Join(selectFieldList, ", "), fe.chgw.GetDatabaseName(), strings.Join(conditions, " AND "), strings.Join(groupBy, ", ")), nil
+}
+
+func formatCondition(statement string, fields url.Values, fieldName string) string {
+	// TODO: Add support for filtering by Prefix (Dst/Src)
+
+	if len(fields[fieldName]) == 1 {
+		return formatConditionSingleValue(statement, fields, fieldName)
+	}
+
+	return formatConditionMultiValues(statement, fields, fieldName)
+}
+
+func formatConditionSingleValue(statement string, fields url.Values, fieldName string) string {
+	v := fields[fieldName][0]
+	if isIPField(fieldName) {
+		v = formatIPCondition(v)
+	} else {
+		v = fmt.Sprintf("'%s'", v)
+	}
+
+	return fmt.Sprintf("%s = %s", statement, v)
+}
+
+func formatConditionMultiValues(statement string, fields url.Values, fieldName string) string {
+	values := make([]string, 0)
+	for _, v := range fields[fieldName] {
+		if isIPField(fieldName) {
+			values = append(values, formatIPCondition(v))
+			continue
+		}
+
+		values = append(values, fmt.Sprintf("'%s'", v))
+	}
+
+	return fmt.Sprintf("%s IN (%s)", statement, strings.Join(values, ", "))
+}
+
+func isIPField(fieldName string) bool {
+	return fieldName == "nexthop" || fieldName == "src_ip_addr" || fieldName == "dst_ip_addr" || fieldName == "agent"
+}
+
+func formatIPCondition(addr string) string {
+	if strings.Contains(addr, ".") {
+		return fmt.Sprintf("IPv4ToIPv6(IPv4StringToNum('%s'))", addr)
+	}
+
+	return fmt.Sprintf("IPv6StringToNum('%s')", addr)
 }
 
 func resolveVirtualField(f string) string {
