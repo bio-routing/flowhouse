@@ -103,7 +103,28 @@ func (c *ClickHouseGateway) InsertFlows(flows []*flow.Flow) error {
 		return errors.Wrap(err, "Begin failed")
 	}
 
-	stmt, err := tx.Prepare("INSERT INTO flows (agent, int_in, int_out, src_ip_addr, dst_ip_addr, src_ip_pfx_addr, src_ip_pfx_len, dst_ip_pfx_addr, dst_ip_pfx_len, nexthop, next_asn, src_asn, dst_asn, ip_protocol, src_port, dst_port, timestamp, size, packets, samplerate) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+	stmt, err := tx.Prepare(`INSERT INTO flows (
+		agent, 
+		int_in, 
+		int_out, 
+		src_ip_addr, 
+		dst_ip_addr, 
+		src_ip_pfx_addr, 
+		src_ip_pfx_len, 
+		dst_ip_pfx_addr, 
+		dst_ip_pfx_len, 
+		nexthop, 
+		next_asn, 
+		src_asn, 
+		dst_asn, 
+		ip_protocol, 
+		src_port, 
+		dst_port, 
+		timestamp, 
+		size, 
+		packets, 
+		samplerate
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? , ?, ?, ?)`)
 	if err != nil {
 		return errors.Wrap(err, "Prepare failed")
 	}

@@ -92,6 +92,5 @@ func (r *RouteMirror) LPM(rtrAddr string, vrfRD uint64, addr bnet.IP) (*route.Ro
 		return nil, nil
 	}
 
-	// TODO: Check if PathSelection() in bio is wrong. Best route is apparently last element. Should be first...
 	return routes[len(routes)-1], nil
 }
