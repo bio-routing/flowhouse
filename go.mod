@@ -4,7 +4,7 @@ go 1.14
 
 require (
 	github.com/ClickHouse/clickhouse-go v1.4.1
-	github.com/bio-routing/bio-rd v0.0.3-pre4
+	github.com/bio-routing/bio-rd v0.0.3-pre5
 	github.com/bio-routing/tflow2 v0.0.0-20200122091514-89924193643e
 	github.com/gogo/protobuf v1.3.1
 	github.com/pkg/errors v0.9.1

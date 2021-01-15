@@ -47,12 +47,21 @@ func (ipa *IPAnnotator) Annotate(fl *flow.Flow) error {
 	}
 
 	fl.DstPfx = *drt.Prefix()
-	dstFirstASPathSeg := drt.BestPath().BGPPath.ASPath.GetLastSequenceSegment()
-	if dstFirstASPathSeg != nil {
-		dstASN := dstFirstASPathSeg.GetLastASN()
+	dstLastASPathSeg := drt.BestPath().BGPPath.ASPath.GetLastSequenceSegment()
+	if dstLastASPathSeg != nil {
+		dstASN := dstLastASPathSeg.GetLastASN()
 		if dstASN != nil {
 			fl.DstAs = *dstASN
 		}
 	}
+
+	dstFirstASPathSeg := drt.BestPath().BGPPath.ASPath.GetFirstSequenceSegment()
+	if dstFirstASPathSeg != nil {
+		nextASN := dstFirstASPathSeg.GetFirstASN()
+		if nextASN != nil {
+			fl.NextAs = *nextASN
+		}
+	}
+
 	return nil
 }

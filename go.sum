@@ -39,6 +39,8 @@ github.com/bio-routing/bio-rd v0.0.3-pre2 h1:Ho7ytp/sVp3Bh9SsFd1wn/IMwygwAkTRNkO
 github.com/bio-routing/bio-rd v0.0.3-pre2/go.mod h1:Dm2pV+USySIWrQ13pjU0+KxXwiKPGdiigDv2fM+RcDs=
 github.com/bio-routing/bio-rd v0.0.3-pre4 h1:Q3zvIBhT2V63p3/KTFpB1hShDD/9Ej0iWSC6xY9+6ks=
 github.com/bio-routing/bio-rd v0.0.3-pre4/go.mod h1:Dm2pV+USySIWrQ13pjU0+KxXwiKPGdiigDv2fM+RcDs=
+github.com/bio-routing/bio-rd v0.0.3-pre5 h1:DT9DmIf+tpU0++Y5/hz8Nx9Ly0X2NdaMlpjpLek/cDI=
+github.com/bio-routing/bio-rd v0.0.3-pre5/go.mod h1:Dm2pV+USySIWrQ13pjU0+KxXwiKPGdiigDv2fM+RcDs=
 github.com/bio-routing/tflow2 v0.0.0-20181230153523-2e308a4a3c3a/go.mod h1:tjzJ5IykdbWNs1FjmiJWsH6SRBl+aWgxO5I44DAegIw=
 github.com/bio-routing/tflow2 v0.0.0-20200122091514-89924193643e h1:Zh5s5mFKBG1dwDLJU1fsPoFxTmixabOhqEuKrOkrKLM=
 github.com/bio-routing/tflow2 v0.0.0-20200122091514-89924193643e/go.mod h1:4E2F/ExVEOHe9VF0fqQP60HTCWCMOWV4PyB8R/HndPU=
