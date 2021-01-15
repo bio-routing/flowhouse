@@ -276,13 +276,7 @@ func (fe *Frontend) processQuery(r *http.Request) (*result, error) {
 			case string:
 				keyComponents = append(keyComponents, fmt.Sprintf("%s=%s", label, (*valuePtrs[i].(*interface{})).(string)))
 			case net.IP:
-				addr := (*valuePtrs[i].(*interface{})).(net.IP)
-				if addr.To4() == nil {
-					keyComponents = append(keyComponents, fmt.Sprintf("%s=IPv6StringToNum(%s)", label, addr.String()))
-				} else {
-					keyComponents = append(keyComponents, fmt.Sprintf("%s=IPv4ToIPv6(IPv4StringToNum(%s))", label, addr.String()))
-				}
-
+				keyComponents = append(keyComponents, fmt.Sprintf("%s=%s", label, (*valuePtrs[i].(*interface{})).(net.IP).String()))
 			}
 		}
 
@@ -363,7 +357,11 @@ func (fe *Frontend) fieldsToQuery(fields url.Values) (string, error) {
 		}
 
 		if len(fields[fieldName]) == 1 {
-			conditions = append(conditions, fmt.Sprintf("%s = '%s'", statement, fields[fieldName][0]))
+			if fieldName == "nexthop" || fieldName == "src_ip_addr" || fieldName == "dst_ip_addr" || fieldName == "agent" {
+				conditions = append(conditions, fmt.Sprintf("%s = '%s'", statement, fields[fieldName][0]))
+			} else {
+				conditions = append(conditions, fmt.Sprintf("%s = '%s'", statement, fields[fieldName][0]))
+			}
 		} else {
 			values := make([]string, 0)
 			for _, v := range fields[fieldName] {
