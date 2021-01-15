@@ -276,7 +276,13 @@ func (fe *Frontend) processQuery(r *http.Request) (*result, error) {
 			case string:
 				keyComponents = append(keyComponents, fmt.Sprintf("%s=%s", label, (*valuePtrs[i].(*interface{})).(string)))
 			case net.IP:
-				keyComponents = append(keyComponents, fmt.Sprintf("%s=%s", label, (*valuePtrs[i].(*interface{})).(net.IP).String()))
+				addr := (*valuePtrs[i].(*interface{})).(net.IP)
+				if addr.To4() == nil {
+					keyComponents = append(keyComponents, fmt.Sprintf("%s=IPv6StringToNum(%s)", label, addr.String()))
+				} else {
+					keyComponents = append(keyComponents, fmt.Sprintf("%s=IPv4ToIPv6(IPv4StringToNum(%s))", label, addr.String()))
+				}
+
 			}
 		}
 

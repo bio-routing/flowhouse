@@ -262,7 +262,6 @@ func (sfs *SflowServer) processPacket(agent bnet.IP, buffer []byte) {
 		}
 
 		if fl.IntIn == "" {
-
 			fl.IntIn += fmt.Sprintf("%d", fs.FlowSampleHeader.InputIf)
 		}
 
