@@ -7,6 +7,10 @@ Flowhouse is a Clickhouse based sFlow collector and web based analyzer offer ric
 It is planned to add support for IPFIX/Netflow version 9. Packet decoder exists from github.com/bio-routing/tflow2.
 Patches adding support are very welcome!
 
+## Interface Name Discovery
+
+Discovery of interface names is supported using SNMP. The database always stores interface namens. Not IDs.
+
 ## Statis Meta Data Annotations
 
 Static meta data annotations are supported by the use of Clickhouses dicts.
