@@ -15,6 +15,7 @@ import (
 	"github.com/bio-routing/flowhouse/pkg/clickhousegw"
 	"github.com/pkg/errors"
 
+	bnet "github.com/bio-routing/bio-rd/net"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -274,7 +275,12 @@ func (fe *Frontend) processQuery(r *http.Request) (*result, error) {
 			case uint64:
 				keyComponents = append(keyComponents, fmt.Sprintf("%s=%d", label, (*valuePtrs[i].(*interface{})).(uint64)))
 			case string:
-				keyComponents = append(keyComponents, fmt.Sprintf("%s=%s", label, (*valuePtrs[i].(*interface{})).(string)))
+				s := (*valuePtrs[i].(*interface{})).(string)
+				if strings.Contains(s, "::ffff:") && strings.Contains(s, "/") {
+					s = formatPrefix(s)
+				}
+
+				keyComponents = append(keyComponents, fmt.Sprintf("%s=%s", label, s))
 			case net.IP:
 				keyComponents = append(keyComponents, fmt.Sprintf("%s=%s", label, (*valuePtrs[i].(*interface{})).(net.IP).String()))
 			}
@@ -287,6 +293,12 @@ func (fe *Frontend) processQuery(r *http.Request) (*result, error) {
 	}
 
 	return res, nil
+}
+
+func formatPrefix(s string) string {
+	parts := strings.Split(s, "/")
+	addr := net.ParseIP(parts[0])
+	return fmt.Sprintf("%s/%s", addr.String(), parts[1])
 }
 
 func getReadableLabel(label string) string {
@@ -350,7 +362,6 @@ func (fe *Frontend) fieldsToQuery(fields url.Values) (string, error) {
 			continue
 		}
 
-		fieldName = resolveVirtualField(fieldName)
 		statement, err := fe.resolveDictIfNecessary(fieldName)
 		if err != nil {
 			log.WithError(err).Warning("Unable to resolve dict. Ignoring condition")
@@ -387,6 +398,13 @@ func formatConditionSingleValue(statement string, fields url.Values, fieldName s
 	v := fields[fieldName][0]
 	if isIPField(fieldName) {
 		v = formatIPCondition(v)
+	} else if isPrefixField(fieldName) {
+		var err error
+		v, err = formatPrefixCondition(fieldName, v)
+		if err != nil {
+			return ""
+		}
+		return v
 	} else {
 		v = fmt.Sprintf("'%s'", v)
 	}
@@ -395,6 +413,10 @@ func formatConditionSingleValue(statement string, fields url.Values, fieldName s
 }
 
 func formatConditionMultiValues(statement string, fields url.Values, fieldName string) string {
+	if isPrefixField(fieldName) {
+		return prefixMultiValueCondition(statement, fields, fieldName)
+	}
+
 	values := make([]string, 0)
 	for _, v := range fields[fieldName] {
 		if isIPField(fieldName) {
@@ -408,8 +430,26 @@ func formatConditionMultiValues(statement string, fields url.Values, fieldName s
 	return fmt.Sprintf("%s IN (%s)", statement, strings.Join(values, ", "))
 }
 
+func prefixMultiValueCondition(statement string, fields url.Values, fieldName string) string {
+	conditions := make([]string, 0)
+	for _, v := range fields[fieldName] {
+		var err error
+		v, err = formatPrefixCondition(fieldName, v)
+		if err != nil {
+			return ""
+		}
+		conditions = append(conditions, v)
+	}
+
+	return "(" + strings.Join(conditions, " OR ") + ")"
+}
+
 func isIPField(fieldName string) bool {
 	return fieldName == "nexthop" || fieldName == "src_ip_addr" || fieldName == "dst_ip_addr" || fieldName == "agent"
+}
+
+func isPrefixField(fieldName string) bool {
+	return fieldName == "dst_ip_pfx" || fieldName == "src_ip_pfx"
 }
 
 func formatIPCondition(addr string) string {
@@ -418,6 +458,19 @@ func formatIPCondition(addr string) string {
 	}
 
 	return fmt.Sprintf("IPv6StringToNum('%s')", addr)
+}
+
+func formatPrefixCondition(fieldName string, p string) (string, error) {
+	pfx, err := bnet.PrefixFromString(p)
+	if err != nil {
+		return "", err
+	}
+
+	if pfx.Addr().IsIPv4() {
+		return fmt.Sprintf("(%s_addr = IPv4ToIPv6(IPv4StringToNum('%s')) AND %s_len = %d)", fieldName, pfx.Addr().String(), fieldName, pfx.Pfxlen()), nil
+	}
+
+	return fmt.Sprintf("(%s_addr = IPv6StringToNum('%s') AND %s_len = %d)", fieldName, pfx.Addr().String(), fieldName, pfx.Pfxlen()), nil
 }
 
 func resolveVirtualField(f string) string {
