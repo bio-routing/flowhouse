@@ -11,7 +11,7 @@ Patches adding support are very welcome!
 
 Discovery of interface names is supported using SNMP. The database always stores interface namens. Not IDs.
 
-## Statis Meta Data Annotations
+## Static Meta Data Annotations
 
 Static meta data annotations are supported by the use of Clickhouses dicts.
 
