@@ -18,4 +18,4 @@ Static meta data annotations are supported by the use of Clickhouses dicts.
 ## Dynamic Routing Meta Data Annotations
 
 Dynamic routing meta data annotations like source and destination prefix, source, destination and nexthop ASN are supported
-on the basis of the BIO routing RIS.
+on the basis of the [BIO routing RIS](https://github.com/bio-routing/bio-rd/tree/master/cmd/ris).
