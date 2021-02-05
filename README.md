@@ -20,6 +20,18 @@ Static meta data annotations are supported by the use of Clickhouses dicts.
 Dynamic routing meta data annotations like source and destination prefix, source, destination and nexthop ASN are supported
 on the basis of the [BIO routing RIS](https://github.com/bio-routing/bio-rd/tree/master/cmd/ris).
 
+## Installation
+```go get github.com/bio-routing/flowhouse/cmd/flowhouse```
+
+```go install github.com/bio-routing/flowhouse/cmd/flowhouse```
+
 ## Configuration
 
 We have not documentation about this yet. But the config format is defined here: [https://github.com/bio-routing/flowhouse/blob/master/cmd/flowhouse/config/config.go#L21](https://github.com/bio-routing/flowhouse/blob/master/cmd/flowhouse/config/config.go#L21)
+
+## Running it
+```user@host ~ % flowhouse --help
+Usage of flowhouse:
+  -config.file string
+    	Config file path (YAML) (default "config.yaml")
+```
