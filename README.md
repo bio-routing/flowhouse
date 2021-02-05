@@ -30,7 +30,8 @@ on the basis of the [BIO routing RIS](https://github.com/bio-routing/bio-rd/tree
 We have not documentation about this yet. But the config format is defined here: [https://github.com/bio-routing/flowhouse/blob/master/cmd/flowhouse/config/config.go#L21](https://github.com/bio-routing/flowhouse/blob/master/cmd/flowhouse/config/config.go#L21)
 
 ## Running it
-```user@host ~ % flowhouse --help
+```
+user@host ~ % flowhouse --help
 Usage of flowhouse:
   -config.file string
     	Config file path (YAML) (default "config.yaml")
