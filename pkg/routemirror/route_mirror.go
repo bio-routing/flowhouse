@@ -70,7 +70,7 @@ func (r *RouteMirror) getRouter(needle string) *router {
 func (r *RouteMirror) LPM(rtrAddr string, vrfRD uint64, addr bnet.IP) (*route.Route, error) {
 	rtr := r.getRouter(rtrAddr)
 	if rtr == nil {
-		return nil, fmt.Errorf("Router not found")
+		return nil, fmt.Errorf("Router %s not found", rtrAddr)
 	}
 
 	afi := uint8(6)
@@ -82,7 +82,7 @@ func (r *RouteMirror) LPM(rtrAddr string, vrfRD uint64, addr bnet.IP) (*route.Ro
 
 	v := rtr.getVRF(vrfRD)
 	if v == nil {
-		return nil, fmt.Errorf("Invalid VRF %d pn %q", vrfRD, rtrAddr)
+		return nil, fmt.Errorf("Invalid VRF %d pn %s", vrfRD, rtrAddr)
 	}
 
 	rib := v.getLocRIB(afi)

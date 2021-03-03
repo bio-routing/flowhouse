@@ -28,6 +28,7 @@ func main() {
 		SNMPCommunity: cfg.SNMPCommunity,
 		RISTimeout:    time.Duration(cfg.RISTimeout) * time.Second,
 		ListenSflow:   cfg.ListenSFlow,
+		ListenIPFIX:   cfg.ListenIPFIX,
 		ListenHTTP:    cfg.ListenHTTP,
 		DefaultVRF:    cfg.GetDefaultVRF(),
 		Dicts:         cfg.Dicts,

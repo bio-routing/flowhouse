@@ -24,6 +24,7 @@ type Config struct {
 	DefaultVRF    string `yaml:"default_vrf"`
 	defaultVRF    uint64
 	ListenSFlow   string                         `yaml:"listen_sflow"`
+	ListenIPFIX   string                         `yaml:"listen_ipfix"`
 	ListenHTTP    string                         `yaml:"listen_http"`
 	Dicts         frontend.Dicts                 `yaml:"dicts"`
 	Clickhouse    *clickhousegw.ClickhouseConfig `yaml:"clickhouse"`

@@ -1,6 +1,8 @@
 package flow
 
 import (
+	"fmt"
+
 	bnet "github.com/bio-routing/bio-rd/net"
 )
 
@@ -33,4 +35,21 @@ type Flow struct {
 func (fl *Flow) Add(a *Flow) {
 	fl.Size += a.Size
 	fl.Packets += a.Packets
+}
+
+// Dump dumps the flow
+func (fl *Flow) Dump() {
+	fmt.Printf("--------------------------------\n")
+	fmt.Printf("Flow dump:\n")
+	fmt.Printf("Router: %s\n", fl.Agent.String())
+	fmt.Printf("Family: %d\n", fl.Family)
+	fmt.Printf("SrcAddr: %s\n", fl.SrcAddr.String())
+	fmt.Printf("DstAddr: %s\n", fl.DstAddr.String())
+	fmt.Printf("Protocol: %d\n", fl.Protocol)
+	fmt.Printf("NextHop: %s\n", fl.NextHop.String())
+	fmt.Printf("IntIn: %s\n", fl.IntIn)
+	fmt.Printf("IntOut: %s\n", fl.IntOut)
+	fmt.Printf("Packets: %d\n", fl.Packets)
+	fmt.Printf("Bytes: %d\n", fl.Size)
+	fmt.Printf("--------------------------------\n")
 }

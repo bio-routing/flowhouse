@@ -1,7 +1,6 @@
 package flowhouse
 
 import (
-	"fmt"
 	"net/http"
 	"runtime"
 	"time"
@@ -13,6 +12,7 @@ import (
 	"github.com/bio-routing/flowhouse/pkg/ipannotator"
 	"github.com/bio-routing/flowhouse/pkg/models/flow"
 	"github.com/bio-routing/flowhouse/pkg/routemirror"
+	"github.com/bio-routing/flowhouse/pkg/servers/ipfix"
 	"github.com/bio-routing/flowhouse/pkg/servers/sflow"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -31,6 +31,7 @@ type Flowhouse struct {
 	grpcClientManager *clientmanager.ClientManager
 	ipa               *ipannotator.IPAnnotator
 	sfs               *sflow.SflowServer
+	ifxs              *ipfix.IPFIXServer
 	chgw              *clickhousegw.ClickHouseGateway
 	fe                *frontend.Frontend
 	flowsRX           chan []*flow.Flow
@@ -42,6 +43,7 @@ type Config struct {
 	SNMPCommunity string
 	RISTimeout    time.Duration
 	ListenSflow   string
+	ListenIPFIX   string
 	ListenHTTP    string
 	DefaultVRF    uint64
 	Dicts         frontend.Dicts
@@ -74,6 +76,12 @@ func New(cfg *Config) (*Flowhouse, error) {
 	}
 	fh.sfs = sfs
 
+	ifxs, err := ipfix.New(fh.cfg.ListenIPFIX, runtime.NumCPU(), fh.flowsRX, fh.ifMapper)
+	if err != nil {
+		return nil, errors.Wrap(err, "Unable to start IPFIX server")
+	}
+	fh.ifxs = ifxs
+
 	chgw, err := clickhousegw.New(fh.cfg.ChCfg)
 	if err != nil {
 		return nil, errors.Wrap(err, "Unable to create clickhouse wrapper")
@@ -100,7 +108,6 @@ func (f *Flowhouse) AddAgent(name string, addr bnet.IP, risAddrs []string, vrfs 
 	}
 
 	for _, v := range vrfs {
-		fmt.Printf("Adding Target %s %s %v %d\n", name, addr.String(), rtSource, v)
 		f.routeMirror.AddTarget(name, addr, rtSource, v)
 	}
 }
