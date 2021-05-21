@@ -11,7 +11,9 @@
 
 package ipfix
 
-import "unsafe"
+import (
+	"unsafe"
+)
 
 const (
 	// numPreAllocFlowDataRecs is number of elements to pre allocate in DataRecs slice
@@ -57,6 +59,10 @@ type TemplateRecord struct {
 	Type uint16
 }
 
+func (tmpl *TemplateRecord) isEnterprise() bool {
+	return tmpl.Type&0x8000 == 0x8000
+}
+
 // FlowDataRecord is actual NetFlow data. This structure does not contain any
 // information about the actual data meaning. It must be combined with
 // corresponding TemplateRecord to be decoded to a single NetFlow data row.
@@ -90,25 +96,29 @@ func (dtpl *TemplateRecords) DecodeFlowSet(set Set) (list []FlowDataRecord) {
 		if record.Values == nil {
 			return
 		}
+
 		list = append(list, record)
 		n = n - count
 	}
 
-	return
+	return list
 }
 
 // parseFieldValues reads actual fields values from a Data Record utilizing a template
-func parseFieldValues(flows []byte, fields []*TemplateRecord) ([][]byte, int) {
+func parseFieldValues(data []byte, fields []*TemplateRecord) ([][]byte, int) {
 	count := 0
-	n := len(flows)
+	n := len(data)
 	values := make([][]byte, len(fields))
+
 	for i, f := range fields {
 		if n < int(f.Length) {
 			return nil, 0
 		}
-		values[i] = flows[n-int(f.Length) : n]
+
+		values[i] = data[n-int(f.Length) : n]
 		count += int(f.Length)
 		n -= int(f.Length)
 	}
+
 	return values, count
 }

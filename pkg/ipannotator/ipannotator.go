@@ -21,7 +21,7 @@ func New(rm *routemirror.RouteMirror) *IPAnnotator {
 func (ipa *IPAnnotator) Annotate(fl *flow.Flow) error {
 	srt, err := ipa.rm.LPM(fl.Agent.String(), fl.VRFIn, fl.SrcAddr)
 	if err != nil {
-		return errors.Wrap(err, "Unable to get route for source address")
+		return errors.Wrapf(err, "Unable to get route for source address %s", fl.SrcAddr.String())
 	}
 
 	if srt == nil {
@@ -39,7 +39,7 @@ func (ipa *IPAnnotator) Annotate(fl *flow.Flow) error {
 
 	drt, err := ipa.rm.LPM(fl.Agent.String(), fl.VRFOut, fl.DstAddr)
 	if err != nil {
-		return errors.Wrap(err, "Unable to get route for source address")
+		return errors.Wrapf(err, "Unable to get route for destination address %s", fl.DstAddr.String())
 	}
 
 	if drt == nil {

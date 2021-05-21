@@ -218,7 +218,7 @@ func (sfs *SflowServer) stopped() bool {
 func (sfs *SflowServer) processPacket(agent bnet.IP, buffer []byte) {
 	agentStr := agent.String()
 
-	p, err := sflow.Decode(buffer[:len(buffer)])
+	p, err := sflow.Decode(buffer)
 	if err != nil {
 		log.WithError(err).Error("Unable to decode sflow packet")
 		return

@@ -13,7 +13,6 @@ package ipfix
 
 import (
 	"fmt"
-	"net"
 	"unsafe"
 
 	"github.com/bio-routing/tflow2/convert"
@@ -37,7 +36,7 @@ func errorIncompatibleVersion(version uint16) error {
 }
 
 // Decode is the main function of this package. It converts raw packet bytes to Packet struct.
-func Decode(raw []byte, remote net.IP) (*Packet, error) {
+func Decode(raw []byte) (*Packet, error) {
 	data := convert.Reverse(raw) //TODO: Make it endian aware. This assumes a little endian machine
 
 	pSize := len(data)
@@ -77,7 +76,10 @@ func Decode(raw []byte, remote net.IP) (*Packet, error) {
 
 		if fls.Header.SetID == TemplateSetID {
 			// Template
-			decodeTemplate(&packet, ptr, uintptr(fls.Header.Length)-sizeOfSetHeader, remote)
+			err := decodeTemplate(&packet, ptr, uintptr(fls.Header.Length)-sizeOfSetHeader)
+			if err != nil {
+				return nil, errors.Wrap(err, "Unable to decode template")
+			}
 		} else if fls.Header.SetID > SetIDTemplateMax {
 			// Actual data packet
 			decodeData(&packet, ptr, uintptr(fls.Header.Length)-sizeOfSetHeader)
@@ -103,7 +105,7 @@ func decodeData(packet *Packet, headerPtr unsafe.Pointer, size uintptr) {
 }
 
 // decodeTemplate decodes a template from `packet`
-func decodeTemplate(packet *Packet, end unsafe.Pointer, size uintptr, remote net.IP) {
+func decodeTemplate(packet *Packet, end unsafe.Pointer, size uintptr) error {
 	min := uintptr(end) - size
 	for uintptr(end) > min {
 		headerPtr := unsafe.Pointer(uintptr(end) - sizeOfTemplateRecordHeader)
@@ -114,9 +116,13 @@ func decodeTemplate(packet *Packet, end unsafe.Pointer, size uintptr, remote net
 		tmplRecs.Records = make([]*TemplateRecord, 0, numPreAllocRecs)
 
 		ptr := unsafe.Pointer(uintptr(headerPtr) - sizeOfTemplateRecordHeader)
-		var i uint16
-		for i = 0; i < tmplRecs.Header.FieldCount; i++ {
+		for i := uint16(0); i < tmplRecs.Header.FieldCount; i++ {
 			rec := (*TemplateRecord)(unsafe.Pointer(ptr))
+
+			if rec.isEnterprise() {
+				return fmt.Errorf("Enterprise TLV currently not supported")
+			}
+
 			tmplRecs.Records = append(tmplRecs.Records, rec)
 			ptr = unsafe.Pointer(uintptr(ptr) - sizeOfTemplateRecord)
 		}
@@ -124,6 +130,8 @@ func decodeTemplate(packet *Packet, end unsafe.Pointer, size uintptr, remote net
 		packet.Templates = append(packet.Templates, tmplRecs)
 		end = unsafe.Pointer(uintptr(end) - uintptr(tmplRecs.Header.FieldCount)*sizeOfTemplateRecord - sizeOfTemplateRecordHeader)
 	}
+
+	return nil
 }
 
 // PrintHeader prints the header of `packet`
