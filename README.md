@@ -1,11 +1,8 @@
 # flowhouse
 
-Flowhouse is a [Clickhouse](https://clickhouse.tech/) based sFlow collector and web based analyzer that offers rich annotation and querying features.
+Flowhouse is a [Clickhouse](https://clickhouse.tech/) based sFlow + IPFIX collector and web based analyzer that offers rich annotation and querying features.
 
 ![screenshot](https://github.com/bio-routing/flowhouse/raw/master/assets/flowhouse-ui.png "UI Screenshot")
-
-It is planned to add support for IPFIX/Netflow version 9. Packet decoder to be taken from [github.com/bio-routing/tflow2](https://github.com/bio-routing/tflow2).
-Patches adding support are very welcome!
 
 ## Interface Name Discovery
 
