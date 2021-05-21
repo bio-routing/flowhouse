@@ -76,7 +76,10 @@ func Decode(raw []byte) (*Packet, error) {
 
 		if fls.Header.SetID == TemplateSetID {
 			// Template
-			decodeTemplate(&packet, ptr, uintptr(fls.Header.Length)-sizeOfSetHeader)
+			err := decodeTemplate(&packet, ptr, uintptr(fls.Header.Length)-sizeOfSetHeader)
+			if err != nil {
+				return nil, errors.Wrap(err, "Unable to decode template")
+			}
 		} else if fls.Header.SetID > SetIDTemplateMax {
 			// Actual data packet
 			decodeData(&packet, ptr, uintptr(fls.Header.Length)-sizeOfSetHeader)
@@ -102,7 +105,7 @@ func decodeData(packet *Packet, headerPtr unsafe.Pointer, size uintptr) {
 }
 
 // decodeTemplate decodes a template from `packet`
-func decodeTemplate(packet *Packet, end unsafe.Pointer, size uintptr) {
+func decodeTemplate(packet *Packet, end unsafe.Pointer, size uintptr) error {
 	min := uintptr(end) - size
 	for uintptr(end) > min {
 		headerPtr := unsafe.Pointer(uintptr(end) - sizeOfTemplateRecordHeader)
@@ -113,19 +116,12 @@ func decodeTemplate(packet *Packet, end unsafe.Pointer, size uintptr) {
 		tmplRecs.Records = make([]*TemplateRecord, 0, numPreAllocRecs)
 
 		ptr := unsafe.Pointer(uintptr(headerPtr) - sizeOfTemplateRecordHeader)
-		var i uint16
-		fmt.Printf("Template!\n")
-		for i = 0; i < tmplRecs.Header.FieldCount; i++ {
+		for i := uint16(0); i < tmplRecs.Header.FieldCount; i++ {
 			rec := (*TemplateRecord)(unsafe.Pointer(ptr))
 
-			fmt.Printf("Record: %d (%b)=> %d\n", rec.Type, rec.Type, rec.Length)
-
 			if rec.isEnterprise() {
-				panic("ENTERPRISE!!!")
-				ptr = unsafe.Pointer(uintptr(ptr) + 4)
+				return fmt.Errorf("Enterprise TLV currently not supported")
 			}
-
-			//rec.Type = rec.getType()
 
 			tmplRecs.Records = append(tmplRecs.Records, rec)
 			ptr = unsafe.Pointer(uintptr(ptr) - sizeOfTemplateRecord)
@@ -134,6 +130,8 @@ func decodeTemplate(packet *Packet, end unsafe.Pointer, size uintptr) {
 		packet.Templates = append(packet.Templates, tmplRecs)
 		end = unsafe.Pointer(uintptr(end) - uintptr(tmplRecs.Header.FieldCount)*sizeOfTemplateRecord - sizeOfTemplateRecordHeader)
 	}
+
+	return nil
 }
 
 // PrintHeader prints the header of `packet`
