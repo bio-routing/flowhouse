@@ -12,5 +12,5 @@ require (
 	github.com/soniah/gosnmp v0.0.0-20181018115632-28507a583d6f
 	github.com/stretchr/testify v1.4.0
 	google.golang.org/grpc v1.28.0
-	gopkg.in/yaml.v2 v2.2.7
+	gopkg.in/yaml.v2 v2.2.8
 )
