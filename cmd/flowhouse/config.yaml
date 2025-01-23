@@ -1,7 +1,9 @@
 ris_timeout: 10
 listen_sflow: ":6343"
 listen_http: ":9991"
-snmp_community: "PLEASE-CHANGE-ME"
+snmp:
+  community: "PLEASE-CHANGE-ME"
+  version: 2
 default_vrf: "0:0"
 clickhouse:
   address: "localhost:9000"

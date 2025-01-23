@@ -6,8 +6,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/bio-routing/flowhouse/cmd/flowhouse/config"
+	"github.com/gosnmp/gosnmp"
 	"github.com/pkg/errors"
-	"github.com/soniah/gosnmp"
 
 	bnet "github.com/bio-routing/bio-rd/net"
 	log "github.com/sirupsen/logrus"
@@ -15,11 +16,13 @@ import (
 
 const (
 	ifNameOID = "1.3.6.1.2.1.31.1.1.1.1"
+	snmpPort  = 161
+	timeout   = time.Second * 30
 )
 
 type device struct {
 	addr             bnet.IP
-	community        string
+	snmpCfg          *config.SNMPConfig
 	interfacesByID   map[uint32]*netIf
 	interfacesByName map[string]*netIf
 	interfacesMu     sync.RWMutex
@@ -28,10 +31,10 @@ type device struct {
 	ticker           *time.Ticker
 }
 
-func newDevice(addr bnet.IP, community string) *device {
+func newDevice(addr bnet.IP, snmpCfg *config.SNMPConfig) *device {
 	d := &device{
 		addr:             addr,
-		community:        community,
+		snmpCfg:          snmpCfg,
 		interfacesByID:   make(map[uint32]*netIf),
 		interfacesByName: make(map[string]*netIf),
 		ticker:           time.NewTicker(time.Minute * 2),
@@ -85,10 +88,30 @@ func (d *device) collector() {
 }
 
 func (d *device) collect() error {
-	s := *gosnmp.Default
-	s.Community = d.community
-	s.Target = d.addr.String()
-	s.Timeout = time.Second * 30
+	s := &gosnmp.GoSNMP{
+		Target:                  d.addr.String(),
+		Port:                    snmpPort,
+		Community:               d.snmpCfg.Community,
+		Version:                 gosnmp.Version2c,
+		Timeout:                 timeout,
+		Retries:                 0,
+		ExponentialTimeout:      false,
+		UseUnconnectedUDPSocket: true,
+	}
+
+	if d.snmpCfg.Version == 3 {
+		s.Community = ""
+		s.Version = gosnmp.Version3
+		s.SecurityModel = gosnmp.UserSecurityModel
+		s.MsgFlags = gosnmp.AuthPriv
+		s.SecurityParameters = &gosnmp.UsmSecurityParameters{
+			UserName:                 d.snmpCfg.User,
+			AuthenticationProtocol:   gosnmp.SHA,
+			AuthenticationPassphrase: d.snmpCfg.AuthPassphrase,
+			PrivacyProtocol:          gosnmp.AES,
+			PrivacyPassphrase:        d.snmpCfg.PrivacyPassphrase,
+		}
+	}
 
 	err := s.Connect()
 	if err != nil {

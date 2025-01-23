@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/bio-routing/flowhouse/cmd/flowhouse/config"
+
 	bnet "github.com/bio-routing/bio-rd/net"
 	log "github.com/sirupsen/logrus"
 )
@@ -35,7 +37,7 @@ func (im *IntfMapper) Resolve(agent bnet.IP, ifID uint32) string {
 }
 
 // AddDevice adds a device
-func (im *IntfMapper) AddDevice(addr bnet.IP, community string) error {
+func (im *IntfMapper) AddDevice(addr bnet.IP, snmpCfg *config.SNMPConfig) error {
 	im.devicesMu.Lock()
 	defer im.devicesMu.Unlock()
 
@@ -43,7 +45,7 @@ func (im *IntfMapper) AddDevice(addr bnet.IP, community string) error {
 		return fmt.Errorf("Device exists already")
 	}
 
-	im.devices[addr] = newDevice(addr, community)
+	im.devices[addr] = newDevice(addr, snmpCfg)
 
 	return nil
 }
