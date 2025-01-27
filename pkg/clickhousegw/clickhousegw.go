@@ -211,7 +211,7 @@ func (c *ClickHouseGateway) GetDictValues(dictName string, attr string) ([]strin
 	dictName = strings.Replace(dictName, " ", "", -1)
 	attr = strings.Replace(attr, " ", "", -1)
 
-	query := fmt.Sprintf("SELECT %s FROM dictionaries.%s GROUP BY %s", attr, dictName, attr)
+	query := fmt.Sprintf("SELECT %s FROM dictionary(%s) GROUP BY %s", attr, dictName, attr)
 	res, err := c.db.Query(query)
 
 	if err != nil {
@@ -233,25 +233,21 @@ func (c *ClickHouseGateway) GetDictValues(dictName string, attr string) ([]strin
 	return result, nil
 }
 
-// DescribeDict gets the names of all fields in a dictionary
-func (c *ClickHouseGateway) DescribeDict(dictName string) ([]string, error) {
+// GetDictFields gets the names of all fields in a dictionary
+func (c *ClickHouseGateway) GetDictFields(dictName string) ([]string, error) {
 	dictName = strings.Replace(dictName, " ", "", -1)
 
-	query := fmt.Sprintf("DESCRIBE dictionaries.%s", dictName)
+	query := fmt.Sprintf("SELECT attribute.names FROM system.dictionaries WHERE name = '%s';", dictName)
 	res, err := c.db.Query(query)
-
 	if err != nil {
 		return nil, errors.Wrap(err, "Exec failed")
 	}
 
 	result := make([]string, 0)
-
-	for res.Next() {
-		name := ""
-		trash := ""
-		res.Scan(&name, &trash, &trash, &trash, &trash, &trash, &trash)
-
-		result = append(result, name)
+	res.Next()
+	err = res.Scan(&result)
+	if err != nil {
+		return nil, err
 	}
 
 	return result, nil
