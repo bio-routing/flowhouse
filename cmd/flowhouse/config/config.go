@@ -19,16 +19,24 @@ const (
 
 // Config represents a config file
 type Config struct {
-	RISTimeout    uint64 `yaml:"ris_timeout"`
-	SNMPCommunity string `yaml:"snmp_community"`
-	DefaultVRF    string `yaml:"default_vrf"`
-	defaultVRF    uint64
-	ListenSFlow   string                         `yaml:"listen_sflow"`
-	ListenIPFIX   string                         `yaml:"listen_ipfix"`
-	ListenHTTP    string                         `yaml:"listen_http"`
-	Dicts         frontend.Dicts                 `yaml:"dicts"`
-	Clickhouse    *clickhousegw.ClickhouseConfig `yaml:"clickhouse"`
-	Routers       []*Router                      `yaml:"routers"`
+	RISTimeout  uint64      `yaml:"ris_timeout"`
+	SNMP        *SNMPConfig `yaml:"snmp"`
+	DefaultVRF  string      `yaml:"default_vrf"`
+	defaultVRF  uint64
+	ListenSFlow string                         `yaml:"listen_sflow"`
+	ListenIPFIX string                         `yaml:"listen_ipfix"`
+	ListenHTTP  string                         `yaml:"listen_http"`
+	Dicts       frontend.Dicts                 `yaml:"dicts"`
+	Clickhouse  *clickhousegw.ClickhouseConfig `yaml:"clickhouse"`
+	Routers     []*Router                      `yaml:"routers"`
+}
+
+type SNMPConfig struct {
+	Version           uint   `yaml:"version"`
+	Community         string `yaml:"community"`
+	User              string `yaml:"user"`
+	AuthPassphrase    string `yaml:"auth-key"`
+	PrivacyPassphrase string `yaml:"privacy-passphrase"`
 }
 
 func (c *Config) load() error {

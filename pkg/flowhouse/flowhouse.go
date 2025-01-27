@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/bio-routing/bio-rd/util/grpc/clientmanager"
+	"github.com/bio-routing/flowhouse/cmd/flowhouse/config"
 	"github.com/bio-routing/flowhouse/pkg/clickhousegw"
 	"github.com/bio-routing/flowhouse/pkg/frontend"
 	"github.com/bio-routing/flowhouse/pkg/intfmapper"
@@ -39,14 +40,14 @@ type Flowhouse struct {
 
 // Config is flow house instances configuration
 type Config struct {
-	ChCfg         *clickhousegw.ClickhouseConfig
-	SNMPCommunity string
-	RISTimeout    time.Duration
-	ListenSflow   string
-	ListenIPFIX   string
-	ListenHTTP    string
-	DefaultVRF    uint64
-	Dicts         frontend.Dicts
+	ChCfg       *clickhousegw.ClickhouseConfig
+	SNMP        *config.SNMPConfig
+	RISTimeout  time.Duration
+	ListenSflow string
+	ListenIPFIX string
+	ListenHTTP  string
+	DefaultVRF  uint64
+	Dicts       frontend.Dicts
 }
 
 // ClickhouseConfig represents a clickhouse client config
@@ -94,7 +95,9 @@ func New(cfg *Config) (*Flowhouse, error) {
 
 // AddAgent adds an agent
 func (f *Flowhouse) AddAgent(name string, addr bnet.IP, risAddrs []string, vrfs []uint64) {
-	f.ifMapper.AddDevice(addr, f.cfg.SNMPCommunity)
+	if f.cfg.SNMP != nil {
+		f.ifMapper.AddDevice(addr, f.cfg.SNMP)
+	}
 
 	rtSource := make([]*grpc.ClientConn, 0)
 	for _, risAddr := range risAddrs {

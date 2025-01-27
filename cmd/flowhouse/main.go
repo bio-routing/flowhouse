@@ -24,14 +24,14 @@ func main() {
 	}
 
 	fhcfg := &flowhouse.Config{
-		ChCfg:         cfg.Clickhouse,
-		SNMPCommunity: cfg.SNMPCommunity,
-		RISTimeout:    time.Duration(cfg.RISTimeout) * time.Second,
-		ListenSflow:   cfg.ListenSFlow,
-		ListenIPFIX:   cfg.ListenIPFIX,
-		ListenHTTP:    cfg.ListenHTTP,
-		DefaultVRF:    cfg.GetDefaultVRF(),
-		Dicts:         cfg.Dicts,
+		ChCfg:       cfg.Clickhouse,
+		SNMP:        cfg.SNMP,
+		RISTimeout:  time.Duration(cfg.RISTimeout) * time.Second,
+		ListenSflow: cfg.ListenSFlow,
+		ListenIPFIX: cfg.ListenIPFIX,
+		ListenHTTP:  cfg.ListenHTTP,
+		DefaultVRF:  cfg.GetDefaultVRF(),
+		Dicts:       cfg.Dicts,
 	}
 
 	fh, err := flowhouse.New(fhcfg)
