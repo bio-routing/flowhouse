@@ -357,7 +357,6 @@ func (fe *Frontend) fieldsToQuery(fields url.Values) (string, error) {
 	conditions := make([]string, 0)
 	conditions = append(conditions, fmt.Sprintf("t BETWEEN toDateTime(%d) AND toDateTime(%d)", start, end))
 	for fieldName := range fields {
-		fmt.Printf("fieldName: %s\n", fieldName)
 		if fieldName == "breakdown" || fieldName == "time_start" || fieldName == "time_end" || strings.HasPrefix(fieldName, "filter_field") {
 			continue
 		}
@@ -560,26 +559,23 @@ func (fe *Frontend) getIndexView() (*IndexView, error) {
 			Label: field.Label,
 		})
 
-		for _, d := range fe.dictCfgs {
-			if d.Field != field.Name {
+		for _, dictCfg := range fe.dictCfgs {
+			if dictCfg.Field != field.Name {
 				continue
 			}
 
-			dictFields, err := fe.chgw.DescribeDict(d.Dict)
+			dictFields, err := fe.chgw.GetDictFields(dictCfg.Dict)
 			if err != nil {
+				log.Errorf("failed to get dict fields: %v", err)
 				continue
 			}
 
-			keyLen := 1
-			if len(d.Keys) != 0 {
-				keyLen = len(d.Keys)
-			}
-
-			for i := keyLen; i < len(dictFields); i++ {
-				fg.Fields = append(fg.Fields, &Field{
+			for i := 0; i < len(dictFields); i++ {
+				f := &Field{
 					Name:  fmt.Sprintf("%s__%s", field.Name, dictFields[i]),
 					Label: fmt.Sprintf("%s %s", field.Label, strings.Title(dictFields[i])),
-				})
+				}
+				fg.Fields = append(fg.Fields, f)
 
 				ret.BreakDownLen++
 			}
