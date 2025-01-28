@@ -40,14 +40,15 @@ type Flowhouse struct {
 
 // Config is flow house instances configuration
 type Config struct {
-	ChCfg       *clickhousegw.ClickhouseConfig
-	SNMP        *config.SNMPConfig
-	RISTimeout  time.Duration
-	ListenSflow string
-	ListenIPFIX string
-	ListenHTTP  string
-	DefaultVRF  uint64
-	Dicts       frontend.Dicts
+	ChCfg              *clickhousegw.ClickhouseConfig
+	SNMP               *config.SNMPConfig
+	RISTimeout         time.Duration
+	ListenSflow        string
+	ListenIPFIX        string
+	ListenHTTP         string
+	DefaultVRF         uint64
+	Dicts              frontend.Dicts
+	DisableIPAnnotator bool
 }
 
 // ClickhouseConfig represents a clickhouse client config
@@ -69,7 +70,9 @@ func New(cfg *Config) (*Flowhouse, error) {
 		flowsRX:           make(chan []*flow.Flow, 1024),
 	}
 
-	fh.ipa = ipannotator.New(fh.routeMirror)
+	if !cfg.DisableIPAnnotator {
+		fh.ipa = ipannotator.New(fh.routeMirror)
+	}
 
 	sfs, err := sflow.New(fh.cfg.ListenSflow, runtime.NumCPU(), fh.flowsRX, fh.ifMapper)
 	if err != nil {
@@ -124,13 +127,15 @@ func (f *Flowhouse) Run() {
 	for {
 		flows := <-f.flowsRX
 
-		for _, fl := range flows {
-			fl.VRFIn = f.cfg.DefaultVRF
-			fl.VRFOut = f.cfg.DefaultVRF
+		if f.ipa != nil {
+			for _, fl := range flows {
+				fl.VRFIn = f.cfg.DefaultVRF
+				fl.VRFOut = f.cfg.DefaultVRF
 
-			err := f.ipa.Annotate(fl)
-			if err != nil {
-				log.WithError(err).Info("Annotating failed")
+				err := f.ipa.Annotate(fl)
+				if err != nil {
+					log.WithError(err).Info("Annotating failed")
+				}
 			}
 		}
 
