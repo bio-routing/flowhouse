@@ -13,10 +13,18 @@ import (
 
 var (
 	configFilePath = flag.String("config.file", "config.yaml", "Config file path (YAML)")
+	debug          = flag.Bool("debug", false, "Enable debug logging")
 )
 
 func main() {
 	flag.Parse()
+
+	if *debug {
+		log.SetLevel(log.DebugLevel)
+		log.Debug("logLevel: DEBUG")
+	} else {
+		log.SetLevel(log.InfoLevel)
+	}
 
 	cfg, err := config.GetConfig(*configFilePath)
 	if err != nil {

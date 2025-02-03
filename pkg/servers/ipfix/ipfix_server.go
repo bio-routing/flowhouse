@@ -159,7 +159,7 @@ func (ipf *IPFIXServer) processFlowSets(remote bnet.IP, domainID uint32, flowSet
 
 		if template == nil {
 			templateKey := makeTemplateKey(addr, domainID, set.Header.SetID, keyParts)
-			log.Warningf("Template for given FlowSet not found: %s", templateKey)
+			log.Debugf("Template for given FlowSet not found: %s", templateKey)
 
 			continue
 		}

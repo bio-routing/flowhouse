@@ -141,7 +141,7 @@ func (d *device) collect() error {
 		return nil
 	})
 	if err != nil {
-		return errors.Wrap(err, "BulkWalk failed")
+		return errors.Wrap(err, "BulkWalk failed for "+d.addr.String())
 	}
 
 	d.update(interfaces)
