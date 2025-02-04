@@ -256,10 +256,8 @@ func (fe *Frontend) processQuery(r *http.Request) (*result, error) {
 
 	res := newResult()
 	rowCount := 0
-	const rowLimit = 5000 // limit the number of processed rows to avoid OOM (too much data hangs the frontend)
-
-	othersData := make(map[time.Time]uint64) // remaining rows are aggregated in othersData[timeBucket] = bps
-	const timeBucket = time.Minute           // interval to aggregate "Others" data instead of spreading timestamps over the whole time range
+	const rowLimit = 5000                    // limit the number of processed rows to avoid OOM (too much data hangs the frontend)
+	othersData := make(map[time.Time]uint64) // remaining rows are aggregated in othersData[timestamp] = bps
 
 	for rows.Next() {
 		err := rows.Scan(valuePtrs...)
@@ -303,18 +301,15 @@ func (fe *Frontend) processQuery(r *http.Request) (*result, error) {
 			}
 
 			res.add(ts, strings.Join(keyComponents, ";"), uint64(value))
-		} else {
-			// Aggregate "Others" data into time buckets
-			bucketStart := ts.Truncate(timeBucket)
-			othersData[bucketStart] += uint64(value)
+		} else { // Aggregate the remaining flows in "Others"
+			othersData[ts] += uint64(value)
 		}
 
 		rowCount++
 	}
 
-	// Add aggregated "Others" data to the result
-	for bucketStart, bps := range othersData {
-		res.add(bucketStart, "Others", bps)
+	for ts, bps := range othersData {
+		res.add(ts, "Others", bps)
 	}
 
 	return res, nil
