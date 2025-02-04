@@ -153,7 +153,7 @@ function renderChart(rdata) {
 
   var options = {
     isStacked: true,
-    title: 'Flow bps',
+    title: 'Flow Mbps',
     hAxis: {
       title: 'Time',
       titleTextStyle: {
