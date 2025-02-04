@@ -241,8 +241,8 @@ func (fe *Frontend) processQuery(r *http.Request) (*result, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "Query failed")
 	}
-
 	defer rows.Close()
+
 	columns, err := rows.Columns()
 	if err != nil {
 		return nil, errors.Wrap(err, "Unable to get columns")
@@ -250,24 +250,29 @@ func (fe *Frontend) processQuery(r *http.Request) (*result, error) {
 
 	values := make([]interface{}, len(columns))
 	valuePtrs := make([]interface{}, len(columns))
+	for i := range columns {
+		valuePtrs[i] = &values[i]
+	}
 
 	res := newResult()
 	rowCount := 0
-	rowLimit := 10000                        // limit the number of processed rows to avoid OOM
+	rowLimit := 5000                         // limit the number of processed rows to avoid OOM (too much data hangs the frontend)
 	othersData := make(map[time.Time]uint64) // remaining rows are aggregated in "Others"
 
 	for rows.Next() {
-		for i := range columns {
-			valuePtrs[i] = &values[i]
-		}
-
 		err := rows.Scan(valuePtrs...)
 		if err != nil {
 			return nil, errors.Wrap(err, "Scan failed")
 		}
 
-		ts := (*valuePtrs[0].(*interface{})).(time.Time)
-		value := (*valuePtrs[len(columns)-1].(*interface{})).(float64)
+		ts, ok := (*valuePtrs[0].(*interface{})).(time.Time)
+		if !ok {
+			return nil, fmt.Errorf("expected time.Time for the first column")
+		}
+		value, ok := (*valuePtrs[len(columns)-1].(*interface{})).(float64)
+		if !ok {
+			return nil, fmt.Errorf("expected float64 for the last column")
+		}
 
 		if rowCount < rowLimit { // Process the top flows normally (sorted by bps descending)
 			keyComponents := make([]string, 0)
