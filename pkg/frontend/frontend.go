@@ -234,8 +234,9 @@ func (fe *Frontend) processQuery(r *http.Request) (*result, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "Unable to generate SQL query")
 	}
-	log.Infof("Query: %s", query)
-	_ = query
+
+	log.Info(query)
+
 	rows, err := fe.chgw.Query(query)
 	if err != nil {
 		return nil, errors.Wrap(err, "Query failed")
@@ -251,6 +252,10 @@ func (fe *Frontend) processQuery(r *http.Request) (*result, error) {
 	valuePtrs := make([]interface{}, len(columns))
 
 	res := newResult()
+	rowCount := 0
+	rowLimit := 10000                        // limit the number of processed rows to avoid OOM
+	othersData := make(map[time.Time]uint64) // remaining rows are aggregated in "Others"
+
 	for rows.Next() {
 		for i := range columns {
 			valuePtrs[i] = &values[i]
@@ -261,35 +266,45 @@ func (fe *Frontend) processQuery(r *http.Request) (*result, error) {
 			return nil, errors.Wrap(err, "Scan failed")
 		}
 
-		keyComponents := make([]string, 0)
-		for i := 1; i < len(columns)-1; i++ {
-			label := getReadableLabel(columns[i])
-
-			switch (*valuePtrs[i].(*interface{})).(type) {
-			case uint8:
-				keyComponents = append(keyComponents, fmt.Sprintf("%s=%d", label, (*valuePtrs[i].(*interface{})).(uint8)))
-			case uint16:
-				keyComponents = append(keyComponents, fmt.Sprintf("%s=%d", label, (*valuePtrs[i].(*interface{})).(uint16)))
-			case uint32:
-				keyComponents = append(keyComponents, fmt.Sprintf("%s=%d", label, (*valuePtrs[i].(*interface{})).(uint32)))
-			case uint64:
-				keyComponents = append(keyComponents, fmt.Sprintf("%s=%d", label, (*valuePtrs[i].(*interface{})).(uint64)))
-			case string:
-				s := (*valuePtrs[i].(*interface{})).(string)
-				if strings.Contains(s, "::ffff:") && strings.Contains(s, "/") {
-					s = formatPrefix(s)
-				}
-
-				keyComponents = append(keyComponents, fmt.Sprintf("%s=%s", label, s))
-			case net.IP:
-				keyComponents = append(keyComponents, fmt.Sprintf("%s=%s", label, (*valuePtrs[i].(*interface{})).(net.IP).String()))
-			}
-		}
-
 		ts := (*valuePtrs[0].(*interface{})).(time.Time)
 		value := (*valuePtrs[len(columns)-1].(*interface{})).(float64)
 
-		res.add(ts, strings.Join(keyComponents, ";"), uint64(value))
+		if rowCount < rowLimit { // Process the top flows normally (sorted by bps descending)
+			keyComponents := make([]string, 0)
+			for i := 1; i < len(columns)-1; i++ {
+				label := getReadableLabel(columns[i])
+
+				switch (*valuePtrs[i].(*interface{})).(type) {
+				case uint8:
+					keyComponents = append(keyComponents, fmt.Sprintf("%s=%d", label, (*valuePtrs[i].(*interface{})).(uint8)))
+				case uint16:
+					keyComponents = append(keyComponents, fmt.Sprintf("%s=%d", label, (*valuePtrs[i].(*interface{})).(uint16)))
+				case uint32:
+					keyComponents = append(keyComponents, fmt.Sprintf("%s=%d", label, (*valuePtrs[i].(*interface{})).(uint32)))
+				case uint64:
+					keyComponents = append(keyComponents, fmt.Sprintf("%s=%d", label, (*valuePtrs[i].(*interface{})).(uint64)))
+				case string:
+					s := (*valuePtrs[i].(*interface{})).(string)
+					if strings.Contains(s, "::ffff:") && strings.Contains(s, "/") {
+						s = formatPrefix(s)
+					}
+
+					keyComponents = append(keyComponents, fmt.Sprintf("%s=%s", label, s))
+				case net.IP:
+					keyComponents = append(keyComponents, fmt.Sprintf("%s=%s", label, (*valuePtrs[i].(*interface{})).(net.IP).String()))
+				}
+			}
+
+			res.add(ts, strings.Join(keyComponents, ";"), uint64(value))
+		} else {
+			othersData[ts] += uint64(value)
+		}
+
+		rowCount++
+	}
+
+	for ts, bps := range othersData {
+		res.add(ts, "Others", bps)
 	}
 
 	return res, nil
@@ -352,7 +367,7 @@ func (fe *Frontend) fieldsToQuery(fields url.Values) (string, error) {
 
 		selectFieldList = append(selectFieldList, fmt.Sprintf("%s as %s", statement, fieldName))
 	}
-	selectFieldList = append(selectFieldList, "sum(size * samplerate) * 8 / 10")
+	selectFieldList = append(selectFieldList, "sum(size * samplerate) * 8 / 10 AS bps")
 
 	conditions := make([]string, 0)
 	conditions = append(conditions, fmt.Sprintf("t BETWEEN toDateTime(%d) AND toDateTime(%d)", start, end))
@@ -379,7 +394,7 @@ func (fe *Frontend) fieldsToQuery(fields url.Values) (string, error) {
 		}
 	}
 
-	q := "SELECT %s FROM %s.flows WHERE %s GROUP BY %s ORDER BY t"
+	q := "SELECT %s FROM %s.flows WHERE %s GROUP BY %s ORDER BY bps DESC LIMIT 20000"
 	return fmt.Sprintf(q, strings.Join(selectFieldList, ", "), fe.chgw.GetDatabaseName(), strings.Join(conditions, " AND "), strings.Join(groupBy, ", ")), nil
 }
 
