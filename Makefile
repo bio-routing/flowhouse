@@ -6,4 +6,4 @@ build:
 	cd cmd/flowhouse; go build
 
 bindata:
-	cd pkg/frontend; ~/go/bin/go-bindata -pkg frontend assets/
+	cd pkg/frontend; go-bindata -pkg frontend assets/
