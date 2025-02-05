@@ -28,37 +28,32 @@ $(document).ready(function() {
 });
 
 function addFilter() {
-  $("#filters").append($("#filterTemplate").html().replace(/__NUM__/g, filtersCount));
+  const filterTemplate = $("#filterTemplate").html().replace(/__NUM__/g, filtersCount);
+  $("#filters").append(filterTemplate);
 
-  $("#filter_field\\[" + filtersCount + "\\]").change(function () {
-    fieldName = $(this).val();
+  const $filterField = $(`#filter_field\\[${filtersCount}\\]`);
+  const $filterValue = $(`#filter_value\\[${filtersCount}\\]`);
+  const $filterRemove = $(`#filter_remove\\[${filtersCount}\\]`);
 
-    selectName = $(this).attr("id");
-    filterNum = selectName.substring(
-      selectName.lastIndexOf("[") + 1,
-      selectName.lastIndexOf("]")
-    );
-
-    $("#filter_value\\[" + filterNum + "\\]").attr("name", fieldName);
+  $filterField.change(function() {
+    const fieldName = $(this).val();
+    const filterNum = $(this).attr("id").match(/\d+/)[0];
+    $filterValue.attr("name", fieldName);
     loadValues(filterNum, fieldName);
   });
 
-  $("#filter_remove\\[" + filtersCount + "\\]").click(function () {
-    $("#filter_row\\[" + $(this).val() + "\\]").remove();
+  $filterRemove.click(function() {
+    $(this).closest('.row').remove();
   });
 
-  var ret = filtersCount;
   filtersCount++;
-
-  return ret;
 }
 
+
 function parseParams(str) {
-  return str.split('&').reduce(function (params, param) {
-    var paramSplit = param.split('=').map(function (value) {
-      return decodeURIComponent(value.replace('+', ' '));
-    });
-    params[paramSplit[0]] = paramSplit[1];
+  return str.split('&').reduce(function(params, param) {
+    const [key, value] = param.split('=').map(decodeURIComponent);
+    params[key] = value.replace(/\+/g, ' ');
     return params;
   }, {});
 }
@@ -241,26 +236,34 @@ function renderChart(rdata) {
   var chart = new google.visualization.AreaChart(document.getElementById('chart_div'));
   chart.draw(data, options);
 
-  // Create custom legend
-  var customLegendDiv = document.getElementById('custom_legend');
+  const customLegendDiv = document.getElementById('custom_legend');
   customLegendDiv.innerHTML = ''; // Clear any existing legend
-  var colors = options.colors;
-  var columns = data.getNumberOfColumns();
+  const colors = options.colors;
+  const columns = data.getNumberOfColumns();
 
-  var table = document.createElement('table');
+  const table = document.createElement('table');
   table.classList.add('table', 'table-sm', 'table-bordered');
-  var tbody = document.createElement('tbody');
+  const tbody = document.createElement('tbody');
 
-  for (var i = 1; i < columns; i++) {
-    var row = document.createElement('tr');
-    var colorCell = document.createElement('td');
+  for (let i = 1; i < columns; i++) {
+    const row = document.createElement('tr');
+    const colorCell = document.createElement('td');
     colorCell.style.backgroundColor = colors[(i - 1) % colors.length];
     colorCell.style.width = '20px';
-    var labelCell = document.createElement('td');
+    const labelCell = document.createElement('td');
     labelCell.textContent = data.getColumnLabel(i);
     row.appendChild(colorCell);
     row.appendChild(labelCell);
     tbody.appendChild(row);
+
+    (function(seriesIndex) {
+      row.addEventListener('mouseover', function() {
+        highlightSeries(chart, data, options, seriesIndex);
+      });
+      row.addEventListener('mouseout', function() {
+        resetHighlight(chart, data, options);
+      });
+    })(i - 1);
   }
 
   table.appendChild(tbody);
