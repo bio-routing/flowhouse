@@ -202,8 +202,9 @@ function renderChart(rdata) {
     },
     height: screen.height * 0.7,
     chartArea: {
-      width: '85%', 
-      height: '75%',
+      width: '90%', 
+      height: '70%',
+      top: '5%',
       backgroundColor: {
         stroke: '#ccc',
         strokeWidth: 1
@@ -217,12 +218,7 @@ function renderChart(rdata) {
       easing: 'out'
     },
     legend: {
-      position: 'top',
-      alignment: 'center',
-      textStyle: {
-        fontSize: 12,
-        color: '#333'
-      }
+      position: 'none'
     },
     tooltip: {
       textStyle: {
@@ -242,7 +238,33 @@ function renderChart(rdata) {
     }
   };
 
-  new google.visualization.AreaChart(document.getElementById('chart_div')).draw(data, options);
+  var chart = new google.visualization.AreaChart(document.getElementById('chart_div'));
+  chart.draw(data, options);
+
+  // Create custom legend
+  var customLegendDiv = document.getElementById('custom_legend');
+  customLegendDiv.innerHTML = ''; // Clear any existing legend
+  var colors = options.colors;
+  var columns = data.getNumberOfColumns();
+
+  var table = document.createElement('table');
+  table.classList.add('table', 'table-sm', 'table-bordered');
+  var tbody = document.createElement('tbody');
+
+  for (var i = 1; i < columns; i++) {
+    var row = document.createElement('tr');
+    var colorCell = document.createElement('td');
+    colorCell.style.backgroundColor = colors[(i - 1) % colors.length];
+    colorCell.style.width = '20px';
+    var labelCell = document.createElement('td');
+    labelCell.textContent = data.getColumnLabel(i);
+    row.appendChild(colorCell);
+    row.appendChild(labelCell);
+    tbody.appendChild(row);
+  }
+
+  table.appendChild(tbody);
+  customLegendDiv.appendChild(table);
 }
 
 function formatTimestamp(date) {

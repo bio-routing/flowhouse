@@ -6,6 +6,15 @@
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" >
     <link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
     <title>Flowhouse</title>
+    <style>
+      #custom_legend {
+        max-height: 400px;
+        overflow-y: auto;
+      }
+      .table-sm td {
+        padding: 0.25rem;
+      }
+    </style>   
   </head>
   <body>
     <nav class="navbar navbar-dark sticky-top bg-dark flex-md-nowrap p-0">
@@ -66,6 +75,7 @@
       </div>
       <main class="col-md-9 ml-sm-auto col-lg-10 pt-3 px-4">
         <div id="chart_div"></div>
+        <div id="custom_legend"></div>
       </main>
       </div>
 
