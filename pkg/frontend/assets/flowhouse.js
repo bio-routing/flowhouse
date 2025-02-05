@@ -150,27 +150,100 @@ function renderChart(rdata) {
   }
 
   data = google.visualization.arrayToDataTable(data);
-
   var options = {
     isStacked: true,
     title: 'Flow Mbps',
+    titleTextStyle: {
+      fontSize: 24,
+      bold: true,
+      color: '#333'
+    },
     hAxis: {
       title: 'Time',
       titleTextStyle: {
-        color: '#333'
+        color: '#333',
+        italic: false,
+        bold: true,
+        fontSize: 14
+      },
+      gridlines: {
+        color: '#f3f3f3',
+        count: 10
+      },
+      minorGridlines: {
+        color: '#e9e9e9'
+      },
+      format: 'HH:mm:ss',
+      textStyle: {
+        color: '#333',
+        fontSize: 12
       }
     },
     vAxis: {
-      minValue: 0
+      minValue: 0,
+      title: 'Megabits per second',
+      titleTextStyle: {
+        color: '#333',
+        italic: false,
+        bold: true,
+        fontSize: 14
+      },
+      gridlines: {
+        color: '#f3f3f3',
+        count: 10
+      },
+      minorGridlines: {
+        color: '#e9e9e9'
+      },
+      textStyle: {
+        color: '#333',
+        fontSize: 12
+      }
     },
     height: screen.height * 0.7,
-
-    chartArea: {width: '80%', height: '80%'}
+    chartArea: {
+      width: '85%', 
+      height: '75%',
+      backgroundColor: {
+        stroke: '#ccc',
+        strokeWidth: 1
+      }
+    },
+    backgroundColor: '#ffffff',
+    colors: ['#2196F3', '#4CAF50', '#FFC107', '#FF5722', '#9C27B0'],
+    animation: {
+      startup: true,
+      duration: 1000,
+      easing: 'out'
+    },
+    legend: {
+      position: 'top',
+      alignment: 'center',
+      textStyle: {
+        fontSize: 12,
+        color: '#333'
+      }
+    },
+    tooltip: {
+      textStyle: {
+        color: '#333',
+        fontSize: 12
+      },
+      showColorCode: true
+    },
+    lineWidth: 2,
+    pointSize: 2,
+    series: {
+      0: { lineDashStyle: [4, 4] },
+      1: { lineDashStyle: [2, 2] },
+      2: { lineDashStyle: [4, 2] },
+      3: { lineDashStyle: [2, 4] },
+      4: { lineDashStyle: [1, 1] }
+    }
   };
 
   new google.visualization.AreaChart(document.getElementById('chart_div')).draw(data, options);
 }
-
 
 function formatTimestamp(date) {
   return date.toISOString().substr(0, 16)
