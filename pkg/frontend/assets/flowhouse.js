@@ -28,37 +28,32 @@ $(document).ready(function() {
 });
 
 function addFilter() {
-  $("#filters").append($("#filterTemplate").html().replace(/__NUM__/g, filtersCount));
+  const filterTemplate = $("#filterTemplate").html().replace(/__NUM__/g, filtersCount);
+  $("#filters").append(filterTemplate);
 
-  $("#filter_field\\[" + filtersCount + "\\]").change(function () {
-    fieldName = $(this).val();
+  const $filterField = $(`#filter_field\\[${filtersCount}\\]`);
+  const $filterValue = $(`#filter_value\\[${filtersCount}\\]`);
+  const $filterRemove = $(`#filter_remove\\[${filtersCount}\\]`);
 
-    selectName = $(this).attr("id");
-    filterNum = selectName.substring(
-      selectName.lastIndexOf("[") + 1,
-      selectName.lastIndexOf("]")
-    );
-
-    $("#filter_value\\[" + filterNum + "\\]").attr("name", fieldName);
+  $filterField.change(function() {
+    const fieldName = $(this).val();
+    const filterNum = $(this).attr("id").match(/\d+/)[0];
+    $filterValue.attr("name", fieldName);
     loadValues(filterNum, fieldName);
   });
 
-  $("#filter_remove\\[" + filtersCount + "\\]").click(function () {
-    $("#filter_row\\[" + $(this).val() + "\\]").remove();
+  $filterRemove.click(function() {
+    $(this).closest('.row').remove();
   });
 
-  var ret = filtersCount;
   filtersCount++;
-
-  return ret;
 }
 
+
 function parseParams(str) {
-  return str.split('&').reduce(function (params, param) {
-    var paramSplit = param.split('=').map(function (value) {
-      return decodeURIComponent(value.replace('+', ' '));
-    });
-    params[paramSplit[0]] = paramSplit[1];
+  return str.split('&').reduce(function(params, param) {
+    const [key, value] = param.split('=').map(decodeURIComponent);
+    params[key] = value.replace(/\+/g, ' ');
     return params;
   }, {});
 }
@@ -150,27 +145,130 @@ function renderChart(rdata) {
   }
 
   data = google.visualization.arrayToDataTable(data);
-
   var options = {
     isStacked: true,
-    title: 'Flow bps',
+    title: 'Flow Mbps',
+    titleTextStyle: {
+      fontSize: 24,
+      bold: true,
+      color: '#333'
+    },
     hAxis: {
       title: 'Time',
       titleTextStyle: {
-        color: '#333'
+        color: '#333',
+        italic: false,
+        bold: true,
+        fontSize: 14
+      },
+      gridlines: {
+        color: '#f3f3f3',
+        count: 10
+      },
+      minorGridlines: {
+        color: '#e9e9e9'
+      },
+      format: 'HH:mm:ss',
+      textStyle: {
+        color: '#333',
+        fontSize: 12
       }
     },
     vAxis: {
-      minValue: 0
+      minValue: 0,
+      title: 'Megabits per second',
+      titleTextStyle: {
+        color: '#333',
+        italic: false,
+        bold: true,
+        fontSize: 14
+      },
+      gridlines: {
+        color: '#f3f3f3',
+        count: 10
+      },
+      minorGridlines: {
+        color: '#e9e9e9'
+      },
+      textStyle: {
+        color: '#333',
+        fontSize: 12
+      }
     },
     height: screen.height * 0.7,
-
-    chartArea: {width: '80%', height: '80%'}
+    chartArea: {
+      width: '90%', 
+      height: '70%',
+      top: '5%',
+      backgroundColor: {
+        stroke: '#ccc',
+        strokeWidth: 1
+      }
+    },
+    backgroundColor: '#ffffff',
+    colors: ['#2196F3', '#4CAF50', '#FFC107', '#FF5722', '#9C27B0'],
+    animation: {
+      startup: true,
+      duration: 1000,
+      easing: 'out'
+    },
+    legend: {
+      position: 'none'
+    },
+    tooltip: {
+      textStyle: {
+        color: '#333',
+        fontSize: 12
+      },
+      showColorCode: true
+    },
+    lineWidth: 2,
+    pointSize: 2,
+    series: {
+      0: { lineDashStyle: [4, 4] },
+      1: { lineDashStyle: [2, 2] },
+      2: { lineDashStyle: [4, 2] },
+      3: { lineDashStyle: [2, 4] },
+      4: { lineDashStyle: [1, 1] }
+    }
   };
 
-  new google.visualization.AreaChart(document.getElementById('chart_div')).draw(data, options);
-}
+  var chart = new google.visualization.AreaChart(document.getElementById('chart_div'));
+  chart.draw(data, options);
 
+  const customLegendDiv = document.getElementById('custom_legend');
+  customLegendDiv.innerHTML = ''; // Clear any existing legend
+  const colors = options.colors;
+  const columns = data.getNumberOfColumns();
+
+  const table = document.createElement('table');
+  table.classList.add('table', 'table-sm', 'table-bordered');
+  const tbody = document.createElement('tbody');
+
+  for (let i = 1; i < columns; i++) {
+    const row = document.createElement('tr');
+    const colorCell = document.createElement('td');
+    colorCell.style.backgroundColor = colors[(i - 1) % colors.length];
+    colorCell.style.width = '20px';
+    const labelCell = document.createElement('td');
+    labelCell.textContent = data.getColumnLabel(i);
+    row.appendChild(colorCell);
+    row.appendChild(labelCell);
+    tbody.appendChild(row);
+
+    (function(seriesIndex) {
+      row.addEventListener('mouseover', function() {
+        highlightSeries(chart, data, options, seriesIndex);
+      });
+      row.addEventListener('mouseout', function() {
+        resetHighlight(chart, data, options);
+      });
+    })(i - 1);
+  }
+
+  table.appendChild(tbody);
+  customLegendDiv.appendChild(table);
+}
 
 function formatTimestamp(date) {
   return date.toISOString().substr(0, 16)

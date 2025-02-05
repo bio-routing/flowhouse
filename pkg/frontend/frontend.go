@@ -257,7 +257,7 @@ func (fe *Frontend) processQuery(r *http.Request) (*result, error) {
 	res := newResult()
 	rowCount := 0
 	const rowLimit = 5000                    // limit the number of processed rows to avoid OOM (too much data hangs the frontend)
-	othersData := make(map[time.Time]uint64) // remaining rows are aggregated in othersData[timestamp] = bps
+	othersData := make(map[time.Time]uint64) // remaining rows are aggregated in othersData[timestamp] = mbps
 
 	for rows.Next() {
 		err := rows.Scan(valuePtrs...)
@@ -274,7 +274,7 @@ func (fe *Frontend) processQuery(r *http.Request) (*result, error) {
 			return nil, fmt.Errorf("expected float64 for the last column")
 		}
 
-		if rowCount < rowLimit { // Process the top flows normally (sorted by bps descending)
+		if rowCount < rowLimit { // Process the top flows normally (sorted by mbps descending)
 			keyComponents := make([]string, 0)
 			for i := 1; i < len(columns)-1; i++ {
 				label := getReadableLabel(columns[i])
@@ -308,8 +308,8 @@ func (fe *Frontend) processQuery(r *http.Request) (*result, error) {
 		rowCount++
 	}
 
-	for ts, bps := range othersData {
-		res.add(ts, "Others", bps)
+	for ts, mbps := range othersData {
+		res.add(ts, "Others", mbps)
 	}
 
 	return res, nil
@@ -372,7 +372,7 @@ func (fe *Frontend) fieldsToQuery(fields url.Values) (string, error) {
 
 		selectFieldList = append(selectFieldList, fmt.Sprintf("%s as %s", statement, fieldName))
 	}
-	selectFieldList = append(selectFieldList, "sum(size * samplerate) * 8 / 10 AS bps")
+	selectFieldList = append(selectFieldList, "sum(size * samplerate) * 8 / 10 / 1000000 AS mbps")
 
 	conditions := make([]string, 0)
 	conditions = append(conditions, fmt.Sprintf("t BETWEEN toDateTime(%d) AND toDateTime(%d)", start, end))
@@ -399,7 +399,7 @@ func (fe *Frontend) fieldsToQuery(fields url.Values) (string, error) {
 		}
 	}
 
-	q := "SELECT %s FROM %s.flows WHERE %s GROUP BY %s ORDER BY bps DESC LIMIT 20000"
+	q := "SELECT %s FROM %s.flows WHERE %s GROUP BY %s ORDER BY mbps DESC LIMIT 20000"
 	return fmt.Sprintf(q, strings.Join(selectFieldList, ", "), fe.chgw.GetDatabaseName(), strings.Join(conditions, " AND "), strings.Join(groupBy, ", ")), nil
 }
 
@@ -505,7 +505,7 @@ func resolveVirtualField(f string) string {
 }
 
 func timeFieldToTimestamp(v string) (int64, error) {
-	v += ":00+02:00" // FIXME: Make this configurable
+	v += ":00+00:00" // FIXME: Make this configurable
 	t, err := time.Parse(time.RFC3339, v)
 	if err != nil {
 		return 0, errors.Wrapf(err, "Unable to parse %q", v)
