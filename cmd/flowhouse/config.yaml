@@ -1,10 +1,15 @@
 ris_timeout: 10
 listen_sflow: ":6343"
+listen_ipfix: ":2055"
 listen_http: ":9991"
-snmp:
-  community: "PLEASE-CHANGE-ME"
-  version: 2
 default_vrf: "0:0"
+disable_ip_annotator: true
+snmp:
+  version: 2
+  community: "PLEASE-CHANGE-ME"
+  user: "PLEASE-CHANGE-ME"
+  auth-key: "PLEASE-CHANGE-ME"
+  privacy-passphrase: "PLEASE-CHANGE-ME"
 clickhouse:
   address: "localhost:9000"
   user: "PLEASE-CHANGE-ME"
@@ -13,15 +18,18 @@ clickhouse:
 dicts:
   - field: "agent"
     dict: "ip_addrs"
+    expr: "tuple(IPv6NumToString(%s))"
   - field: "src_ip_addr"
     dict: "ip_addrs"
+    expr: "tuple(IPv6NumToString(%s))"
   - field: "dst_ip_addr"
     dict: "ip_addrs"
-  - field: "ip_protocol"
-    dict: "ip_protocols"
+    expr: "tuple(IPv6NumToString(%s))"
 routers:
   - name: "core01.pop01"
     address: 192.0.2.1
     ris_instances:
       - "ris01.pop01:4321"
     vrfs: ["0:0"]
+  - name: "core02.pop02"
+    address: 192.0.2.2
