@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"strings"
+	"time"
 
 	"github.com/bio-routing/flowhouse/pkg/models/flow"
 	"github.com/pkg/errors"
@@ -14,10 +15,12 @@ import (
 	bnet "github.com/bio-routing/bio-rd/net"
 )
 
+const tableName = "flows"
+
 // ClickHouseGateway is a wrapper for Clickhouse
 type ClickHouseGateway struct {
-	dbName string
-	db     *sql.DB
+	cfg *ClickhouseConfig
+	db  *sql.DB
 }
 
 // ClickhouseConfig represents a clickhouse client config
@@ -27,6 +30,8 @@ type ClickhouseConfig struct {
 	User     string `yaml:"user"`
 	Password string `yaml:"password"`
 	Database string `yaml:"database"`
+	Sharded  bool   `yaml:"sharded"`
+	Cluster  string `yaml:"cluster"`
 }
 
 // New instantiates a new ClickHouseGateway
@@ -47,8 +52,8 @@ func New(cfg *ClickhouseConfig) (*ClickHouseGateway, error) {
 	}
 
 	chgw := &ClickHouseGateway{
-		dbName: cfg.Database,
-		db:     c,
+		cfg: cfg,
+		db:  c,
 	}
 
 	err = chgw.createFlowsSchemaIfNotExists()
@@ -60,8 +65,8 @@ func New(cfg *ClickhouseConfig) (*ClickHouseGateway, error) {
 }
 
 func (c *ClickHouseGateway) createFlowsSchemaIfNotExists() error {
-	_, err := c.db.Exec(`
-		CREATE TABLE IF NOT EXISTS flows (
+	tableDDl := `
+		CREATE TABLE IF NOT EXISTS%s %s (
 			agent           IPv6,
 			int_in          String,
 			int_out         String,
@@ -82,18 +87,62 @@ func (c *ClickHouseGateway) createFlowsSchemaIfNotExists() error {
 			size            UInt64,
 			packets         UInt64,
 			samplerate      UInt64
-		) ENGINE = MergeTree()
+		) ENGINE = %s
 		PARTITION BY toStartOfTenMinutes(timestamp)
 		ORDER BY (timestamp)
-		TTL timestamp + INTERVAL 14 DAY
+		%s
 		SETTINGS index_granularity = 8192
-	`)
+	`
+	ttl := "TTL timestamp + INTERVAL 14 DAY"
+	onClusterStatement := ""
+	if c.cfg.Sharded {
+		onClusterStatement = "ON CLUSTER " + c.cfg.Cluster
+	}
+
+	_, err := c.db.Exec(fmt.Sprintf(onClusterStatement, tableDDl, c.getBaseTableName(), c.getBaseTableEngineDDL(), ttl))
 
 	if err != nil {
 		return errors.Wrap(err, "Query failed")
 	}
 
+	if c.cfg.Sharded {
+		_, err = c.db.Exec(fmt.Sprintf(onClusterStatement, tableDDl, tableName, c.getDistributedTableDDl(), ""))
+	}
+	if err != nil {
+		return errors.Wrap(err, "Query failed")
+	}
+
 	return nil
+}
+
+func (c *ClickHouseGateway) getBaseTableName() string {
+	if c.cfg.Sharded {
+		return "_" + c.cfg.Database + "." + tableName + "_base"
+	}
+
+	return tableName
+}
+
+func (c *ClickHouseGateway) getBaseTableEngineDDL() string {
+	if c.cfg.Sharded {
+		zookeeperPathTimestamp := time.Now().Unix()
+		// TODO: make zookeeper path configurable
+		return fmt.Sprintf(
+			"ReplicatedMergeTree('/clickhouse/tables/{shard}/%s/%s_%d', '{replica}')",
+			c.cfg.Database,
+			tableName,
+			zookeeperPathTimestamp)
+	}
+
+	return "MergeTree()"
+}
+func (c *ClickHouseGateway) getDistributedTableDDl() string {
+	return fmt.Sprintf(
+		"Distributed(%s, %s, %s, %s)",
+		c.cfg.Cluster,
+		"_"+c.cfg.Database,
+		tableName+"_base",
+		"rand()")
 }
 
 // InsertFlows inserts flows into clickhouse
@@ -282,7 +331,7 @@ func (c *ClickHouseGateway) DescribeTable(tableName string) ([]string, error) {
 
 // GetDatabaseName gets the databases name
 func (c *ClickHouseGateway) GetDatabaseName() string {
-	return c.dbName
+	return c.cfg.Database
 }
 
 // Query executs an SQL query
