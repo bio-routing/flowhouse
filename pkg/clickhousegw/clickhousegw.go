@@ -65,6 +65,24 @@ func New(cfg *ClickhouseConfig) (*ClickHouseGateway, error) {
 }
 
 func (c *ClickHouseGateway) createFlowsSchemaIfNotExists() error {
+	zookeeperPathTimestamp := time.Now().Unix()
+	_, err := c.db.Exec(c.getCreateTableSchemaDDL(true, zookeeperPathTimestamp))
+
+	if err != nil {
+		return errors.Wrap(err, "Query failed")
+	}
+
+	if c.cfg.Sharded {
+		_, err = c.db.Exec(c.getCreateTableSchemaDDL(false, zookeeperPathTimestamp))
+	}
+	if err != nil {
+		return errors.Wrap(err, "Query failed")
+	}
+
+	return nil
+}
+
+func (c *ClickHouseGateway) getCreateTableSchemaDDL(isBaseTable bool, zookeeperPathPrefix int64) string {
 	tableDDl := `
 		CREATE TABLE IF NOT EXISTS%s %s (
 			agent           IPv6,
@@ -96,23 +114,14 @@ func (c *ClickHouseGateway) createFlowsSchemaIfNotExists() error {
 	ttl := "TTL timestamp + INTERVAL 14 DAY"
 	onClusterStatement := ""
 	if c.cfg.Sharded {
-		onClusterStatement = "ON CLUSTER " + c.cfg.Cluster
+		onClusterStatement = " ON CLUSTER " + c.cfg.Cluster
 	}
 
-	_, err := c.db.Exec(fmt.Sprintf(onClusterStatement, tableDDl, c.getBaseTableName(), c.getBaseTableEngineDDL(), ttl))
-
-	if err != nil {
-		return errors.Wrap(err, "Query failed")
+	if isBaseTable {
+		return fmt.Sprintf(tableDDl, onClusterStatement, c.getBaseTableName(), c.getBaseTableEngineDDL(zookeeperPathPrefix), ttl)
+	} else {
+		return fmt.Sprintf(tableDDl, onClusterStatement, tableName, c.getDistributedTableDDl(), "")
 	}
-
-	if c.cfg.Sharded {
-		_, err = c.db.Exec(fmt.Sprintf(onClusterStatement, tableDDl, tableName, c.getDistributedTableDDl(), ""))
-	}
-	if err != nil {
-		return errors.Wrap(err, "Query failed")
-	}
-
-	return nil
 }
 
 func (c *ClickHouseGateway) getBaseTableName() string {
@@ -123,15 +132,14 @@ func (c *ClickHouseGateway) getBaseTableName() string {
 	return tableName
 }
 
-func (c *ClickHouseGateway) getBaseTableEngineDDL() string {
+func (c *ClickHouseGateway) getBaseTableEngineDDL(zookeeperPathPrefix int64) string {
 	if c.cfg.Sharded {
-		zookeeperPathTimestamp := time.Now().Unix()
 		// TODO: make zookeeper path configurable
 		return fmt.Sprintf(
 			"ReplicatedMergeTree('/clickhouse/tables/{shard}/%s/%s_%d', '{replica}')",
 			c.cfg.Database,
 			tableName,
-			zookeeperPathTimestamp)
+			zookeeperPathPrefix)
 	}
 
 	return "MergeTree()"
