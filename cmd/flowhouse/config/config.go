@@ -130,9 +130,20 @@ func GetConfig(fp string) (*Config, error) {
 		return nil, errors.Wrap(err, "Unable to unmarshal")
 	}
 
+	err = c.Validate()
+	if err != nil {
+		return nil, errors.Wrap(err, "Unable to validate config")
+	}
 	c.load()
 
 	return c, nil
+}
+
+func (c *Config) Validate() error {
+	if c.Clickhouse.Sharded && c.Clickhouse.Cluster == "" {
+		return errors.New("cluster must be set when Clickhouse is replicated")
+	}
+	return nil
 }
 
 // GetRISList gets a list of all referenced RIS instances
