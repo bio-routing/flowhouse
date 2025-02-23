@@ -39,7 +39,17 @@
                   </div>
                 </div>
               </fieldset>
-
+              <fieldset class="form-group">
+                <legend># Top Flows</legend>
+                <div class="row">
+                  <div class="col">
+                    <input type="number" id="topFlows" name="topFlows" class="form-control m-1 p-1" min="1" max="10000" value="500">
+                    <small class="form-text text-muted">
+                      Choosing too many might affect browser performance.
+                    </small>
+                  </div>
+                </div>
+              </fieldset>             
               <fieldset class="form-group">
                 <legend>Filter</legend>
                 <div id="filters">

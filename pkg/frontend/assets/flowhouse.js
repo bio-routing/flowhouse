@@ -85,6 +85,11 @@ function populateFields() {
       continue;
     }
 
+    if (k == "topFlows") {
+      $("#topFlows").val(v);
+      continue;
+    }
+
     if (k.match(/^filter_field/)) {
       continue;
     }
@@ -97,7 +102,18 @@ function populateFields() {
 }
 
 function submitQuery() {
+  event.preventDefault();
+
+  // Validate 'topFlows' box
+  const topFlows = $('#topFlows').val();
+  const topFlowsInt = parseInt(topFlows, 10);
+  if (isNaN(topFlowsInt) || topFlowsInt < 1 || topFlowsInt > 10000) {
+    alert("Incorrect 'Top Flows': please enter a valid integer between 1 and 10000.");
+    return false;
+  }
+
   params = $('form').serialize();
+  params += '&topFlows=' + encodeURIComponent(topFlows);
   location.href = "#" + params
   return false
 }

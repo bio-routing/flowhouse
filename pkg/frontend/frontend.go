@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -253,12 +254,21 @@ func (fe *Frontend) processQuery(r *http.Request) (*result, error) {
 	for i := range columns {
 		valuePtrs[i] = &values[i]
 	}
-
 	res := newResult()
-	rowCount := 0
-	const rowLimit = 5000                    // limit the number of processed rows to avoid OOM (too much data hangs the frontend)
+
+	rowLimit := 500 // default limit of processed rows to avoid OOM (too much data hangs the frontend)
+	if topFlowsValues, ok := r.URL.Query()["topFlows"]; ok && len(topFlowsValues) > 0 {
+		topFlowsInt, err := strconv.Atoi(topFlowsValues[0])
+		if err == nil && topFlowsInt > 0 && topFlowsInt <= 10000 {
+			rowLimit = topFlowsInt
+		} else {
+			log.Errorf("Invalid topFlows value: %v", topFlowsValues[0])
+		}
+	}
+	log.Infof("Top %d rows shown", rowLimit)
 	othersData := make(map[time.Time]uint64) // remaining rows are aggregated in othersData[timestamp] = mbps
 
+	rowCount := 0
 	for rows.Next() {
 		err := rows.Scan(valuePtrs...)
 		if err != nil {
@@ -377,7 +387,7 @@ func (fe *Frontend) fieldsToQuery(fields url.Values) (string, error) {
 	conditions := make([]string, 0)
 	conditions = append(conditions, fmt.Sprintf("t BETWEEN toDateTime(%d) AND toDateTime(%d)", start, end))
 	for fieldName := range fields {
-		if fieldName == "breakdown" || fieldName == "time_start" || fieldName == "time_end" || strings.HasPrefix(fieldName, "filter_field") {
+		if fieldName == "breakdown" || fieldName == "time_start" || fieldName == "time_end" || strings.HasPrefix(fieldName, "filter_field") || fieldName == "topFlows" {
 			continue
 		}
 
@@ -399,7 +409,7 @@ func (fe *Frontend) fieldsToQuery(fields url.Values) (string, error) {
 		}
 	}
 
-	q := "SELECT %s FROM %s.flows WHERE %s GROUP BY %s ORDER BY mbps DESC LIMIT 20000"
+	q := "SELECT %s FROM %s.flows WHERE %s GROUP BY %s ORDER BY mbps DESC LIMIT 10000"
 	return fmt.Sprintf(q, strings.Join(selectFieldList, ", "), fe.chgw.GetDatabaseName(), strings.Join(conditions, " AND "), strings.Join(groupBy, ", ")), nil
 }
 
