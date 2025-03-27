@@ -32,11 +32,13 @@ type ClickhouseConfig struct {
 	Database string `yaml:"database"`
 	Sharded  bool   `yaml:"sharded"`
 	Cluster  string `yaml:"cluster"`
+	Secure   bool   `yaml:"secure"`
 }
 
 // New instantiates a new ClickHouseGateway
 func New(cfg *ClickhouseConfig) (*ClickHouseGateway, error) {
-	dsn := fmt.Sprintf("tcp://%s?username=%s&password=%s&database=%s&read_timeout=10&write_timeout=20", cfg.Address, cfg.User, cfg.Password, cfg.Database)
+	dsn := fmt.Sprintf("tcp://%s?username=%s&password=%s&database=%s&read_timeout=10&write_timeout=20&secure=%t",
+		cfg.Address, cfg.User, cfg.Password, cfg.Database, cfg.Secure)
 	c, err := sql.Open("clickhouse", dsn)
 	if err != nil {
 		return nil, errors.Wrap(err, "sql.Open failed")
