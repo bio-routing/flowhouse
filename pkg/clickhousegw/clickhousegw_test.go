@@ -78,7 +78,7 @@ func TestClickHouseGateway_getCreateTableSchemaDDL(t *testing.T) {
 				zookeeperPathPrefix: zookeeperPathPrefix,
 			},
 			want: fmt.Sprintf(`
-		CREATE TABLE IF NOT EXISTS ON CLUSTER test_cluster _test.flows_base (
+		CREATE TABLE IF NOT EXISTS _test.flows_base ON CLUSTER test_cluster (
 			agent           IPv6,
 			int_in          String,
 			int_out         String,
@@ -120,7 +120,7 @@ func TestClickHouseGateway_getCreateTableSchemaDDL(t *testing.T) {
 				zookeeperPathPrefix: zookeeperPathPrefix,
 			},
 			want: `
-		CREATE TABLE IF NOT EXISTS ON CLUSTER test_cluster flows (
+		CREATE TABLE IF NOT EXISTS flows ON CLUSTER test_cluster (
 			agent           IPv6,
 			int_in          String,
 			int_out         String,

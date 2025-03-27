@@ -84,7 +84,7 @@ func (c *ClickHouseGateway) createFlowsSchemaIfNotExists() error {
 
 func (c *ClickHouseGateway) getCreateTableSchemaDDL(isBaseTable bool, zookeeperPathPrefix int64) string {
 	tableDDl := `
-		CREATE TABLE IF NOT EXISTS%s %s (
+		CREATE TABLE IF NOT EXISTS %s%s (
 			agent           IPv6,
 			int_in          String,
 			int_out         String,
@@ -118,9 +118,9 @@ func (c *ClickHouseGateway) getCreateTableSchemaDDL(isBaseTable bool, zookeeperP
 	}
 
 	if isBaseTable {
-		return fmt.Sprintf(tableDDl, onClusterStatement, c.getBaseTableName(), c.getBaseTableEngineDDL(zookeeperPathPrefix), ttl)
+		return fmt.Sprintf(tableDDl, c.getBaseTableName(), onClusterStatement, c.getBaseTableEngineDDL(zookeeperPathPrefix), ttl)
 	} else {
-		return fmt.Sprintf(tableDDl, onClusterStatement, tableName, c.getDistributedTableDDl(), "")
+		return fmt.Sprintf(tableDDl, tableName, onClusterStatement, c.getDistributedTableDDl(), "")
 	}
 }
 
