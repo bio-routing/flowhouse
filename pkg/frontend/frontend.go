@@ -546,7 +546,13 @@ func (fe *Frontend) resolveDictIfNecessary(fieldName string) (string, error) {
 	}
 
 	expr := fmt.Sprintf(d.Expr, params...)
-	return fmt.Sprintf("dictGet('%s', '%s', %s)", d.Dict, relatedFieldsName, expr), nil
+
+	dictName := d.Dict
+	if !strings.Contains(dictName, ".") {
+		dictName = fe.chgw.GetDatabaseName() + "." + dictName
+	}
+
+	return fmt.Sprintf("dictGet('%s', '%s', %s)", dictName, relatedFieldsName, expr), nil
 }
 
 func parseFieldName(name string) (flowsFieldName, relatedFieldsName string) {
