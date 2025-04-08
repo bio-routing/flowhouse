@@ -239,10 +239,10 @@ func (fe *Frontend) processQuery(r *http.Request) (*result, error) {
 	log.Info(query)
 
 	rows, err := fe.chgw.Query(query)
+	defer rows.Close()
 	if err != nil {
 		return nil, errors.Wrap(err, "Query failed")
 	}
-	defer rows.Close()
 
 	columns, err := rows.Columns()
 	if err != nil {
