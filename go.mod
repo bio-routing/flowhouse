@@ -1,6 +1,8 @@
 module github.com/bio-routing/flowhouse
 
-go 1.20
+go 1.23.0
+
+toolchain go1.23.4
 
 require (
 	github.com/ClickHouse/clickhouse-go v1.4.1
