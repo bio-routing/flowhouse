@@ -184,11 +184,10 @@ func (c *ClickHouseGateway) InsertFlows(flows []*flow.Flow) error {
 		packets, 
 		samplerate
 	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? , ?, ?, ?)`)
+	defer stmt.Close()
 	if err != nil {
 		return errors.Wrap(err, "Prepare failed")
 	}
-
-	defer stmt.Close()
 
 	for _, fl := range flows {
 		_, err := stmt.Exec(
@@ -245,6 +244,7 @@ func (c *ClickHouseGateway) GetColumnValues(columnName string) ([]string, error)
 
 	query := fmt.Sprintf("SELECT %s FROM flows GROUP BY %s", columnName, columnName)
 	res, err := c.db.Query(query)
+	defer res.Close()
 
 	if err != nil {
 		return nil, errors.Wrap(err, "Exec failed")
@@ -272,6 +272,7 @@ func (c *ClickHouseGateway) GetDictValues(dictName string, attr string) ([]strin
 
 	query := fmt.Sprintf("SELECT %s FROM dictionary(%s) GROUP BY %s", attr, dictName, attr)
 	res, err := c.db.Query(query)
+	defer res.Close()
 
 	if err != nil {
 		return nil, errors.Wrap(err, "Exec failed")
@@ -298,6 +299,7 @@ func (c *ClickHouseGateway) GetDictFields(dictName string) ([]string, error) {
 
 	query := fmt.Sprintf("SELECT attribute.names FROM system.dictionaries WHERE name = '%s';", dictName)
 	res, err := c.db.Query(query)
+	defer res.Close()
 	if err != nil {
 		return nil, errors.Wrap(err, "Exec failed")
 	}
@@ -318,6 +320,7 @@ func (c *ClickHouseGateway) DescribeTable(tableName string) ([]string, error) {
 
 	query := fmt.Sprintf("DESCRIBE %s", tableName)
 	res, err := c.db.Query(query)
+	defer res.Close()
 
 	if err != nil {
 		return nil, errors.Wrap(err, "Exec failed")
