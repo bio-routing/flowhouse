@@ -26,7 +26,8 @@ func exampleFlow(t testing.TB, ts time.Time) *flow.Flow {
 }
 
 func TestAggregatorBuffering(t *testing.T) {
-	initialTime := time.Now()
+	// align initial time to avoid test flakiness
+	initialTime := time.Now().Truncate(10 * time.Second)
 	mockedTime := initialTime
 
 	out := make(chan []*flow.Flow, 10)
@@ -42,8 +43,8 @@ func TestAggregatorBuffering(t *testing.T) {
 		t.Error("no flows in channel")
 	}
 
-	// advance time by 5 seconds
-	mockedTime = mockedTime.Add(5 * time.Second)
+	// advance time by 2 seconds
+	mockedTime = mockedTime.Add(2 * time.Second)
 
 	agg.ingest(exampleFlow(t, mockedTime))
 	assert.Len(t, out, 0) // should not have flushed
@@ -61,7 +62,7 @@ func TestAggregatorBuffering(t *testing.T) {
 			require.Len(t, flows, 1)
 			fl := flows[0]
 			assert.Equal(t,
-				initialTime.Add(15*time.Second).Truncate(10*time.Second).Unix(),
+				initialTime.Truncate(10*time.Second).Unix(),
 				fl.Timestamp,
 			)
 		default:
