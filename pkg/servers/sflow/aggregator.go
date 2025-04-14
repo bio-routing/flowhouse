@@ -17,6 +17,7 @@ type aggregator struct {
 	ingress                chan *flow.Flow
 	output                 chan []*flow.Flow
 	currentUnixTimeSeconds int64
+	timeNow                func() time.Time
 }
 
 func newAggregator(output chan []*flow.Flow) *aggregator {
@@ -25,6 +26,7 @@ func newAggregator(output chan []*flow.Flow) *aggregator {
 		stopCh:  make(chan struct{}),
 		ingress: make(chan *flow.Flow),
 		output:  output,
+		timeNow: time.Now,
 	}
 
 	go a.service()
@@ -75,7 +77,7 @@ func (a *aggregator) service() {
 }
 
 func (a *aggregator) ingest(fl *flow.Flow) {
-	currentUnixTimeSeconds := time.Now().Unix()
+	currentUnixTimeSeconds := a.timeNow().Unix()
 	currentUnixTimeSeconds -= currentUnixTimeSeconds % aggregationWindowSeconds
 	if a.currentUnixTimeSeconds < currentUnixTimeSeconds {
 		a.flush()
