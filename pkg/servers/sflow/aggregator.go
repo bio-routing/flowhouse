@@ -8,16 +8,16 @@ import (
 )
 
 const (
-	aggregationWindowSeconds = 10
+	aggregationWindow = 10 * time.Second
 )
 
 type aggregator struct {
-	data                   map[key]*flow.Flow
-	stopCh                 chan struct{}
-	ingress                chan *flow.Flow
-	output                 chan []*flow.Flow
-	currentUnixTimeSeconds int64
-	timeNow                func() time.Time
+	data      map[key]*flow.Flow
+	stopCh    chan struct{}
+	ingress   chan *flow.Flow
+	output    chan []*flow.Flow
+	lastFlush time.Time
+	timeNow   func() time.Time
 }
 
 func newAggregator(output chan []*flow.Flow) *aggregator {
@@ -77,14 +77,15 @@ func (a *aggregator) service() {
 }
 
 func (a *aggregator) ingest(fl *flow.Flow) {
-	currentUnixTimeSeconds := a.timeNow().Unix()
-	currentUnixTimeSeconds -= currentUnixTimeSeconds % aggregationWindowSeconds
-	if a.currentUnixTimeSeconds < currentUnixTimeSeconds {
+	normalizedIngestTime := a.timeNow().Truncate(aggregationWindow)
+
+	timeSinceLastFlush := normalizedIngestTime.Sub(a.lastFlush)
+	if timeSinceLastFlush >= aggregationWindow {
 		a.flush()
-		a.currentUnixTimeSeconds = currentUnixTimeSeconds
+		a.lastFlush = normalizedIngestTime
 	}
 
-	fl.Timestamp = currentUnixTimeSeconds
+	fl.Timestamp = normalizedIngestTime.Unix()
 	a.add(fl)
 }
 
