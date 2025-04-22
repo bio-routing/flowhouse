@@ -19,6 +19,7 @@ import (
 	"github.com/bio-routing/flowhouse/pkg/models/flow"
 	"github.com/bio-routing/flowhouse/pkg/packet/packet"
 	"github.com/bio-routing/flowhouse/pkg/packet/sflow"
+	"github.com/bio-routing/flowhouse/pkg/servers/aggregator"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -36,7 +37,7 @@ type InterfaceResolver interface {
 
 // SflowServer represents a sflow Collector instance
 type SflowServer struct {
-	aggregator               *aggregator
+	aggregator               *aggregator.Aggregator
 	conn                     *net.UDPConn
 	ifResolver               InterfaceResolver
 	wg                       sync.WaitGroup
@@ -58,7 +59,7 @@ type SflowServer struct {
 // New creates and starts a new `SflowServer` instance
 func New(listen string, numReaders int, output chan []*flow.Flow, ifResolver InterfaceResolver) (*SflowServer, error) {
 	sfs := &SflowServer{
-		aggregator: newAggregator(output),
+		aggregator: aggregator.New(output),
 		ifResolver: ifResolver,
 		packetsReceived: promauto.NewCounterVec(prometheus.CounterOpts{
 			Namespace: "flowhouse",
@@ -168,7 +169,7 @@ func (sfs *SflowServer) Stop() {
 	log.Info("Stopping SflowServer")
 	debug.PrintStack()
 	close(sfs.stopCh)
-	sfs.aggregator.stop()
+	sfs.aggregator.Stop()
 	sfs.conn.Close()
 	sfs.wg.Wait()
 }
@@ -282,7 +283,7 @@ func (sfs *SflowServer) processPacket(agent bnet.IP, buffer []byte) {
 		}
 
 		sfs.processEthernet(agentStr, ether.EtherType, fs, fl)
-		sfs.aggregator.ingress <- fl
+		sfs.aggregator.GetIngress() <- fl
 	}
 }
 
