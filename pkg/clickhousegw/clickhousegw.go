@@ -90,6 +90,8 @@ func (c *ClickHouseGateway) getCreateTableSchemaDDL(isBaseTable bool, zookeeperP
 			agent           IPv6,
 			int_in          String,
 			int_out         String,
+			tos             UInt8,
+			dscp            Uint8,
 			src_ip_addr     IPv6,
 			dst_ip_addr     IPv6,
 			src_ip_pfx_addr IPv6,
@@ -165,7 +167,9 @@ func (c *ClickHouseGateway) InsertFlows(flows []*flow.Flow) error {
 	stmt, err := tx.Prepare(`INSERT INTO flows (
 		agent, 
 		int_in, 
-		int_out, 
+		int_out,
+		tos,
+		dscp,
 		src_ip_addr, 
 		dst_ip_addr, 
 		src_ip_pfx_addr, 
@@ -183,7 +187,7 @@ func (c *ClickHouseGateway) InsertFlows(flows []*flow.Flow) error {
 		size, 
 		packets, 
 		samplerate
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? , ?, ?, ?)`)
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? , ?, ?, ?)`)
 	defer stmt.Close()
 	if err != nil {
 		return errors.Wrap(err, "Prepare failed")
@@ -194,6 +198,8 @@ func (c *ClickHouseGateway) InsertFlows(flows []*flow.Flow) error {
 			fl.Agent.ToNetIP(),
 			fl.IntIn,
 			fl.IntOut,
+			fl.TOS,
+			dscp(fl.TOS),
 			fl.SrcAddr.ToNetIP(),
 			fl.DstAddr.ToNetIP(),
 			addrToNetIP(fl.SrcPfx.Addr()),
@@ -223,6 +229,12 @@ func (c *ClickHouseGateway) InsertFlows(flows []*flow.Flow) error {
 	}
 
 	return nil
+}
+
+func dscp(tos uint8) uint8 {
+	// DSCP is the first 6 bits of the TOS field
+
+	return tos >> 2
 }
 
 func addrToNetIP(addr *bnet.IP) net.IP {

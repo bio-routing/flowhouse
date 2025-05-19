@@ -12,8 +12,9 @@
 package packet
 
 import (
-	"github.com/pkg/errors"
 	"unsafe"
+
+	"github.com/pkg/errors"
 )
 
 var (
@@ -29,13 +30,13 @@ type IPv4Header struct {
 	FlagsFragmentOffset uint16
 	Identification      uint16
 	TotalLength         uint16
-	DSCP                uint8
+	TOS                 uint8
 	VersionHeaderLength uint8
 }
 
 func DecodeIPv4(raw unsafe.Pointer, length uint32) (*IPv4Header, error) {
 	if SizeOfIPv4Header > uintptr(length) {
-		return nil, errors.Errorf("Frame is too short: %d", length)
+		return nil, errors.Errorf("frame is too short: %d", length)
 	}
 
 	return (*IPv4Header)(unsafe.Pointer(uintptr(raw) - SizeOfIPv4Header)), nil

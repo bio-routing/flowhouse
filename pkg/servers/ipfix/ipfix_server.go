@@ -41,6 +41,7 @@ type fieldMap struct {
 	srcPort                int
 	dstPort                int
 	samplingPacketInterval int
+	srcTos                 int
 }
 
 type IPFIXServer struct {
@@ -239,6 +240,10 @@ func (ipf *IPFIXServer) processFlowSet(template *ipfix.TemplateRecords, records 
 			fl.NextHop = bnet.IPv4FromBytes(convert.Reverse(r.Values[fm.nextHop]))
 		}
 
+		if fm.srcTos >= 0 {
+			fl.TOS = uint8(r.Values[fm.srcTos][0])
+		}
+
 		fl.Samplerate = 2048
 		//fl.Samplerate = ipf.sampleRateCache.Get(agent)
 
@@ -266,6 +271,7 @@ func generateFieldMap(template *ipfix.TemplateRecords) *fieldMap {
 		srcPort:                -1,
 		dstPort:                -1,
 		samplingPacketInterval: -1,
+		srcTos:                 -1,
 	}
 
 	i := -1
@@ -307,6 +313,8 @@ func generateFieldMap(template *ipfix.TemplateRecords) *fieldMap {
 			fm.dstAsn = i
 		case ipfix.SamplingPacketInterval:
 			fm.samplingPacketInterval = i
+		case ipfix.SrcTos:
+			fm.srcTos = i
 		}
 	}
 

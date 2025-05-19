@@ -19,7 +19,7 @@ type Dot1Q struct {
 // DecodeDot1Q decodes an 802.1q header
 func DecodeDot1Q(raw unsafe.Pointer, length uint32) (*Dot1Q, error) {
 	if SizeOfEthernetII > uintptr(length) {
-		return nil, fmt.Errorf("Frame is too short: %d", length)
+		return nil, fmt.Errorf("frame is too short: %d", length)
 	}
 
 	ptr := unsafe.Pointer(uintptr(raw) - SizeOfDot1Q)
