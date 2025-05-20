@@ -309,10 +309,17 @@ function renderChart(rdata) {
     const sortAsc = window.legendSort.asc;
 
     flowStats.sort((a, b) => {
-      if (sortKey === "label") {
-        return sortAsc ? a.label.localeCompare(b.label) : b.label.localeCompare(a.label);
-      } else {
-        return sortAsc ? a.max - b.max : b.max - a.max;
+      switch (sortKey) {
+        case "label":
+          return sortAsc
+            ? a.label.localeCompare(b.label)
+            : b.label.localeCompare(a.label);
+        case "max":
+          return sortAsc
+            ? a.max - b.max
+            : b.max - a.max;
+        default:
+          return 0;
       }
     });
 
