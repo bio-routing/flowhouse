@@ -142,19 +142,28 @@ function drawChart() {
 }
 
 function renderChart(rdata) {
-  pres = Papa.parse(rdata.trim())
+  pres = Papa.parse(rdata.trim());
+
+  var filtered = [pres.data[0]];
+  for (var i = 1; i < pres.data.length; i++) {
+    var row = pres.data[i];
+    var hasNonZero = row.slice(1).some(function(val) {
+      var num = parseFloat((val || '').trim());
+      return !isNaN(num) && num !== 0;
+    });
+    if (hasNonZero) {
+      filtered.push(row);
+    }
+  }
 
   var data = [];
-  for (var i = 0; i < pres.data.length; i++) {
-    for (var j = 0; j < pres.data[i].length; j++) {
-      if (j == 0) {
-        data[i] = [];
-      }
-      x = pres.data[i][j];
-      if (i != 0) {
-        if (j != 0) {
-          x = parseInt(x)
-        }
+  for (var i = 0; i < filtered.length; i++) {
+    data[i] = [];
+    for (var j = 0; j < filtered[i].length; j++) {
+      var x = filtered[i][j];
+      if (i !== 0 && j !== 0) {
+        x = parseFloat((x || '').trim());
+        if (isNaN(x)) x = 0;
       }
       data[i][j] = x;
     }
