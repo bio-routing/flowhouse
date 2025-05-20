@@ -174,7 +174,7 @@ function renderChart(rdata) {
 
   var filteredData = [];
   for (var i = 0; i < data.length; i++) {
-    var row = [data[i][0]]; // always keep timestamp
+    var row = [data[i][0]];
     for (var j = 1; j < data[i].length; j++) {
       if (window.seriesVisibility[j - 1]) {
         row.push(data[i][j]);
@@ -284,64 +284,135 @@ function renderChart(rdata) {
   var chart = new google.visualization.AreaChart(document.getElementById('chart_div'));
   chart.draw(chartData, options);
 
-  const customLegendDiv = document.getElementById('custom_legend');
-  customLegendDiv.innerHTML = `
-  <div class="legend-help-tip">
-    <strong>How to use:</strong><br>
-    Click a flow to show only it. Click again to go back to all flows.<br>
-    Ctrl/Cmd/Option + click: add/remove flows.
-  </div>
-`;
+  renderLegendTable();
 
-  const colors = options.colors;
-  const columns = data[0].length;
-
-  const table = document.createElement('table');
-  table.classList.add('table', 'table-sm', 'table-bordered');
-  const tbody = document.createElement('tbody');
-
-  for (let i = 1; i < columns; i++) {
-    const row = document.createElement('tr');
-    const colorCell = document.createElement('td');
-    colorCell.style.backgroundColor = colors[(i - 1) % colors.length];
-    colorCell.style.width = '20px';
-    const labelCell = document.createElement('td');
-    labelCell.textContent = data[0][i];
-    row.appendChild(colorCell);
-    row.appendChild(labelCell);
-    tbody.appendChild(row);
-
-    if (!window.seriesVisibility[i - 1]) {
-      row.style.opacity = '0.4';
-    } else {
-      row.style.opacity = '1.0';
-    }
-
-    row.addEventListener('click', function(event) {
-      const visibleCount = window.seriesVisibility.filter(Boolean).length;
-      if (event.ctrlKey || event.metaKey || event.altKey) {
-        // Ctrl/Cmd/Option + click: toggle this series
-        if (window.seriesVisibility[i - 1] && visibleCount === 1) {
-          // If this is the only visible series and user tries to hide it, show all
-          window.seriesVisibility = Array(columns - 1).fill(true);
-        } else {
-          window.seriesVisibility[i - 1] = !window.seriesVisibility[i - 1];
-        }
-      } else {
-        // Regular click: if only this series is visible, show all; else show only this series
-        if (window.seriesVisibility[i - 1] && visibleCount === 1) {
-          window.seriesVisibility = Array(columns - 1).fill(true);
-        } else {
-          window.seriesVisibility = Array(columns - 1).fill(false);
-          window.seriesVisibility[i - 1] = true;
+  function renderLegendTable() {
+    const flowStats = [];
+    for (let i = 1; i < data[0].length; i++) {
+      let max = -Infinity;
+      for (let j = 1; j < data.length; j++) {
+        const val = data[j][i];
+        if (typeof val === "number" && !isNaN(val)) {
+          if (val > max) max = val;
         }
       }
-      renderChart(rdata);
-    });    
-  }
+      flowStats.push({
+        index: i,
+        label: data[0][i],
+        max: max === -Infinity ? 0 : max
+      });
+    }
 
-  table.appendChild(tbody);
-  customLegendDiv.appendChild(table);
+    // Sorting logic
+    if (!window.legendSort) window.legendSort = { key: "label", asc: true };
+    const sortKey = window.legendSort.key;
+    const sortAsc = window.legendSort.asc;
+
+    flowStats.sort((a, b) => {
+      switch (sortKey) {
+        case "label":
+          return sortAsc
+            ? a.label.localeCompare(b.label)
+            : b.label.localeCompare(a.label);
+        case "max":
+          return sortAsc
+            ? a.max - b.max
+            : b.max - a.max;
+        default:
+          return 0;
+      }
+    });
+
+    const customLegendDiv = document.getElementById('custom_legend');
+    customLegendDiv.innerHTML = `
+    <div class="legend-help-tip">
+      <strong>Usage:</strong><br>
+      <span style="color:#2196F3;font-weight:bold;">• Click a flow</span> to show only that flow. Click again to show all.<br>
+      <span style="color:#4CAF50;font-weight:bold;">• Ctrl/Cmd/Option + Click</span> to add or remove flows.<br>
+      <span style="color:#FF5722;font-weight:bold;">• Click a column header</span> to sort the legend.
+    </div>
+    `;
+
+    const colors = options.colors;
+    const table = document.createElement('table');
+    table.classList.add('table', 'table-sm', 'table-bordered');
+    const thead = document.createElement('thead');
+    const headRow = document.createElement('tr');
+
+    function makeHeaderCell(text, key) {
+      const th = document.createElement('th');
+      th.textContent = text;
+      th.style.cursor = 'pointer';
+      th.style.userSelect = 'none';
+      th.addEventListener('click', (e) => {
+        if (window.legendSort.key === key) {
+          window.legendSort.asc = !window.legendSort.asc;
+        } else {
+          window.legendSort.key = key;
+          // Default: sort by MAX Mbps descending, FLOW ascending
+          window.legendSort.asc = (key === 'label');
+        }
+        renderLegendTable();
+        e.stopPropagation();
+      });
+      if (window.legendSort.key === key) {
+        th.textContent += window.legendSort.asc ? ' ▲' : ' ▼';
+      }
+      return th;
+    }
+
+    headRow.appendChild(document.createElement('th')); // color cell (empty)
+    headRow.appendChild(makeHeaderCell('FLOW', 'label'));
+    headRow.appendChild(makeHeaderCell('MAX Mbps', 'max'));
+    thead.appendChild(headRow);
+
+    const tbody = document.createElement('tbody');
+
+    for (const stat of flowStats) {
+      const i = stat.index;
+      const row = document.createElement('tr');
+      const colorCell = document.createElement('td');
+      colorCell.style.backgroundColor = colors[(i - 1) % colors.length];
+      colorCell.style.width = '20px';
+      const labelCell = document.createElement('td');
+      labelCell.textContent = stat.label;
+      const maxCell = document.createElement('td');
+      maxCell.textContent = stat.max.toFixed(1);
+      row.appendChild(colorCell);
+      row.appendChild(labelCell);
+      row.appendChild(maxCell);
+      tbody.appendChild(row);
+
+      if (!window.seriesVisibility[i - 1]) {
+        row.style.opacity = '0.4';
+      } else {
+        row.style.opacity = '1.0';
+      }
+
+      row.addEventListener('click', function(event) {
+        const visibleCount = window.seriesVisibility.filter(Boolean).length;
+        if (event.ctrlKey || event.metaKey || event.altKey) {
+          if (window.seriesVisibility[i - 1] && visibleCount === 1) {
+            window.seriesVisibility = Array(data[0].length - 1).fill(true);
+          } else {
+            window.seriesVisibility[i - 1] = !window.seriesVisibility[i - 1];
+          }
+        } else {
+          if (window.seriesVisibility[i - 1] && visibleCount === 1) {
+            window.seriesVisibility = Array(data[0].length - 1).fill(true);
+          } else {
+            window.seriesVisibility = Array(data[0].length - 1).fill(false);
+            window.seriesVisibility[i - 1] = true;
+          }
+        }
+        renderChart(rdata);
+      });
+    }
+
+    table.appendChild(thead);
+    table.appendChild(tbody);
+    customLegendDiv.appendChild(table);
+  }
 }
 
 function formatTimestamp(date) {
