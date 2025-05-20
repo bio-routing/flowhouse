@@ -169,7 +169,29 @@ function renderChart(rdata) {
     }
   }
 
-  data = google.visualization.arrayToDataTable(data);
+  if (!window.seriesVisibility || window.seriesVisibility.length !== data[0].length - 1) {
+    window.seriesVisibility = Array(data[0].length - 1).fill(true);
+  }
+
+  var filteredData = [];
+  for (var i = 0; i < data.length; i++) {
+    var row = [data[i][0]]; // always keep timestamp
+    for (var j = 1; j < data[i].length; j++) {
+      if (window.seriesVisibility[j - 1]) {
+        row.push(data[i][j]);
+      }
+    }
+    filteredData.push(row);
+  }
+
+  if (filteredData[0].length < 2) {
+    $("#chart_div").text("No series selected.");
+    document.getElementById('custom_legend').innerHTML = '';
+    return;
+  }
+
+  var chartData = google.visualization.arrayToDataTable(filteredData);
+
   var options = {
     isStacked: false,
     title: 'Flow Mbps',
@@ -250,7 +272,7 @@ function renderChart(rdata) {
       showColorCode: true
     },
     lineWidth: 2,
-    pointSize: 2,
+    pointSize: 1,
     series: {
       0: { lineDashStyle: [4, 4] },
       1: { lineDashStyle: [2, 2] },
@@ -261,12 +283,17 @@ function renderChart(rdata) {
   };
 
   var chart = new google.visualization.AreaChart(document.getElementById('chart_div'));
-  chart.draw(data, options);
+  chart.draw(chartData, options);
 
   const customLegendDiv = document.getElementById('custom_legend');
-  customLegendDiv.innerHTML = ''; // Clear any existing legend
+  customLegendDiv.innerHTML = `
+    <div style="margin-bottom:8px;font-size:14px;color:#444;">
+      <strong>How to use:</strong> Click a flow to show only it. Ctrl/Cmd/Option + click to add/remove flows from the graph.
+    </div>
+  `;
+
   const colors = options.colors;
-  const columns = data.getNumberOfColumns();
+  const columns = data[0].length;
 
   const table = document.createElement('table');
   table.classList.add('table', 'table-sm', 'table-bordered');
@@ -278,19 +305,38 @@ function renderChart(rdata) {
     colorCell.style.backgroundColor = colors[(i - 1) % colors.length];
     colorCell.style.width = '20px';
     const labelCell = document.createElement('td');
-    labelCell.textContent = data.getColumnLabel(i);
+    labelCell.textContent = data[0][i];
     row.appendChild(colorCell);
     row.appendChild(labelCell);
     tbody.appendChild(row);
 
-    (function(seriesIndex) {
-      row.addEventListener('mouseover', function() {
-        highlightSeries(chart, data, options, seriesIndex);
-      });
-      row.addEventListener('mouseout', function() {
-        resetHighlight(chart, data, options);
-      });
-    })(i - 1);
+    if (!window.seriesVisibility[i - 1]) {
+      row.style.opacity = '0.4';
+    } else {
+      row.style.opacity = '1.0';
+    }
+
+    row.addEventListener('click', function(event) {
+      const visibleCount = window.seriesVisibility.filter(Boolean).length;
+      if (event.ctrlKey || event.metaKey || event.altKey) {
+        // Ctrl/Cmd/Option + click: toggle this series
+        if (window.seriesVisibility[i - 1] && visibleCount === 1) {
+          // If this is the only visible series and user tries to hide it, show all
+          window.seriesVisibility = Array(columns - 1).fill(true);
+        } else {
+          window.seriesVisibility[i - 1] = !window.seriesVisibility[i - 1];
+        }
+      } else {
+        // Regular click: if only this series is visible, show all; else show only this series
+        if (window.seriesVisibility[i - 1] && visibleCount === 1) {
+          window.seriesVisibility = Array(columns - 1).fill(true);
+        } else {
+          window.seriesVisibility = Array(columns - 1).fill(false);
+          window.seriesVisibility[i - 1] = true;
+        }
+      }
+      renderChart(rdata);
+    });    
   }
 
   table.appendChild(tbody);
