@@ -171,7 +171,7 @@ function renderChart(rdata) {
 
   data = google.visualization.arrayToDataTable(data);
   var options = {
-    isStacked: true,
+    isStacked: false,
     title: 'Flow Mbps',
     titleTextStyle: {
       fontSize: 24,
