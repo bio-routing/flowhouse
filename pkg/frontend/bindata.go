@@ -93,7 +93,7 @@ func assetsFlowhouseJs() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "assets/flowhouse.js", size: 9192, mode: os.FileMode(436), modTime: time.Unix(1747742589, 0)}
+	info := bindataFileInfo{name: "assets/flowhouse.js", size: 9192, mode: os.FileMode(436), modTime: time.Unix(1747747172, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -113,7 +113,7 @@ func assetsIndexHtml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "assets/index.html", size: 5235, mode: os.FileMode(436), modTime: time.Unix(1747737431, 0)}
+	info := bindataFileInfo{name: "assets/index.html", size: 5235, mode: os.FileMode(436), modTime: time.Unix(1747747075, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
