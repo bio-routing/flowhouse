@@ -2,7 +2,7 @@
 
 Flowhouse is a [Clickhouse](https://clickhouse.tech/) based sFlow + IPFIX collector and web based analyzer that offers rich annotation and querying features.
 
-![web ui flowhouse](assets/flowhouse_ui.png)
+![web ui flowhouse](assets/image.png)
 
 ## Interface Name Discovery
 
