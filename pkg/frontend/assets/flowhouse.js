@@ -142,27 +142,57 @@ function drawChart() {
 }
 
 function renderChart(rdata) {
-  pres = Papa.parse(rdata.trim())
+  pres = Papa.parse(rdata.trim());
+
+  var filtered = [pres.data[0]];
+  for (const row of pres.data) {
+    const hasNonZero = row.slice(1).some(val => {
+      const num = parseFloat((val || '').trim());
+      return !isNaN(num) && num !== 0;
+    });
+    if (hasNonZero) {
+      filtered.push(row);
+    }
+  }
 
   var data = [];
-  for (var i = 0; i < pres.data.length; i++) {
-    for (var j = 0; j < pres.data[i].length; j++) {
-      if (j == 0) {
-        data[i] = [];
-      }
-      x = pres.data[i][j];
-      if (i != 0) {
-        if (j != 0) {
-          x = parseInt(x)
-        }
+  for (var i = 0; i < filtered.length; i++) {
+    data[i] = [];
+    for (var j = 0; j < filtered[i].length; j++) {
+      var x = filtered[i][j];
+      if (i !== 0 && j !== 0) {
+        x = parseFloat((x || '').trim());
+        if (isNaN(x)) x = 0;
       }
       data[i][j] = x;
     }
   }
 
-  data = google.visualization.arrayToDataTable(data);
+  if (!window.seriesVisibility || window.seriesVisibility.length !== data[0].length - 1) {
+    window.seriesVisibility = Array(data[0].length - 1).fill(true);
+  }
+
+  var filteredData = [];
+  for (var i = 0; i < data.length; i++) {
+    var row = [data[i][0]]; // always keep timestamp
+    for (var j = 1; j < data[i].length; j++) {
+      if (window.seriesVisibility[j - 1]) {
+        row.push(data[i][j]);
+      }
+    }
+    filteredData.push(row);
+  }
+
+  if (filteredData[0].length < 2) {
+    $("#chart_div").text("No series selected.");
+    document.getElementById('custom_legend').innerHTML = '';
+    return;
+  }
+
+  var chartData = google.visualization.arrayToDataTable(filteredData);
+
   var options = {
-    isStacked: true,
+    isStacked: false,
     title: 'Flow Mbps',
     titleTextStyle: {
       fontSize: 24,
@@ -171,11 +201,14 @@ function renderChart(rdata) {
     },
     hAxis: {
       title: 'Time',
+      slantedText: true,
+      slantedTextAngle: 60,
+      showTextEvery: 10,
       titleTextStyle: {
         color: '#333',
         italic: false,
         bold: true,
-        fontSize: 14
+        fontSize: 18
       },
       gridlines: {
         color: '#f3f3f3',
@@ -184,7 +217,6 @@ function renderChart(rdata) {
       minorGridlines: {
         color: '#e9e9e9'
       },
-      format: 'HH:mm:ss',
       textStyle: {
         color: '#333',
         fontSize: 12
@@ -197,7 +229,7 @@ function renderChart(rdata) {
         color: '#333',
         italic: false,
         bold: true,
-        fontSize: 14
+        fontSize: 18
       },
       gridlines: {
         color: '#f3f3f3',
@@ -239,7 +271,7 @@ function renderChart(rdata) {
       showColorCode: true
     },
     lineWidth: 2,
-    pointSize: 2,
+    pointSize: 1,
     series: {
       0: { lineDashStyle: [4, 4] },
       1: { lineDashStyle: [2, 2] },
@@ -250,12 +282,19 @@ function renderChart(rdata) {
   };
 
   var chart = new google.visualization.AreaChart(document.getElementById('chart_div'));
-  chart.draw(data, options);
+  chart.draw(chartData, options);
 
   const customLegendDiv = document.getElementById('custom_legend');
-  customLegendDiv.innerHTML = ''; // Clear any existing legend
+  customLegendDiv.innerHTML = `
+  <div class="legend-help-tip">
+    <strong>How to use:</strong><br>
+    Click a flow to show only it. Click again to go back to all flows.<br>
+    Ctrl/Cmd/Option + click: add/remove flows.
+  </div>
+`;
+
   const colors = options.colors;
-  const columns = data.getNumberOfColumns();
+  const columns = data[0].length;
 
   const table = document.createElement('table');
   table.classList.add('table', 'table-sm', 'table-bordered');
@@ -267,19 +306,38 @@ function renderChart(rdata) {
     colorCell.style.backgroundColor = colors[(i - 1) % colors.length];
     colorCell.style.width = '20px';
     const labelCell = document.createElement('td');
-    labelCell.textContent = data.getColumnLabel(i);
+    labelCell.textContent = data[0][i];
     row.appendChild(colorCell);
     row.appendChild(labelCell);
     tbody.appendChild(row);
 
-    (function(seriesIndex) {
-      row.addEventListener('mouseover', function() {
-        highlightSeries(chart, data, options, seriesIndex);
-      });
-      row.addEventListener('mouseout', function() {
-        resetHighlight(chart, data, options);
-      });
-    })(i - 1);
+    if (!window.seriesVisibility[i - 1]) {
+      row.style.opacity = '0.4';
+    } else {
+      row.style.opacity = '1.0';
+    }
+
+    row.addEventListener('click', function(event) {
+      const visibleCount = window.seriesVisibility.filter(Boolean).length;
+      if (event.ctrlKey || event.metaKey || event.altKey) {
+        // Ctrl/Cmd/Option + click: toggle this series
+        if (window.seriesVisibility[i - 1] && visibleCount === 1) {
+          // If this is the only visible series and user tries to hide it, show all
+          window.seriesVisibility = Array(columns - 1).fill(true);
+        } else {
+          window.seriesVisibility[i - 1] = !window.seriesVisibility[i - 1];
+        }
+      } else {
+        // Regular click: if only this series is visible, show all; else show only this series
+        if (window.seriesVisibility[i - 1] && visibleCount === 1) {
+          window.seriesVisibility = Array(columns - 1).fill(true);
+        } else {
+          window.seriesVisibility = Array(columns - 1).fill(false);
+          window.seriesVisibility[i - 1] = true;
+        }
+      }
+      renderChart(rdata);
+    });    
   }
 
   table.appendChild(tbody);
