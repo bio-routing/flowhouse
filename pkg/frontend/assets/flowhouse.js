@@ -180,11 +180,14 @@ function renderChart(rdata) {
     },
     hAxis: {
       title: 'Time',
+      slantedText: true,
+      slantedTextAngle: 60,
+      showTextEvery: 10,
       titleTextStyle: {
         color: '#333',
         italic: false,
         bold: true,
-        fontSize: 14
+        fontSize: 18
       },
       gridlines: {
         color: '#f3f3f3',
@@ -193,7 +196,6 @@ function renderChart(rdata) {
       minorGridlines: {
         color: '#e9e9e9'
       },
-      format: 'HH:mm:ss',
       textStyle: {
         color: '#333',
         fontSize: 12
@@ -206,7 +208,7 @@ function renderChart(rdata) {
         color: '#333',
         italic: false,
         bold: true,
-        fontSize: 14
+        fontSize: 18
       },
       gridlines: {
         color: '#f3f3f3',
