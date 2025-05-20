@@ -287,10 +287,12 @@ function renderChart(rdata) {
 
   const customLegendDiv = document.getElementById('custom_legend');
   customLegendDiv.innerHTML = `
-    <div style="margin-bottom:8px;font-size:14px;color:#444;">
-      <strong>How to use:</strong> Click a flow to show only it. Ctrl/Cmd/Option + click to add/remove flows from the graph.
-    </div>
-  `;
+  <div class="legend-help-tip">
+    <strong>How to use:</strong><br>
+    Click a flow to show only it. Click again to go back to all flows.<br>
+    Ctrl/Cmd/Option + click: add/remove flows.
+  </div>
+`;
 
   const colors = options.colors;
   const columns = data[0].length;
