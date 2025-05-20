@@ -145,10 +145,9 @@ function renderChart(rdata) {
   pres = Papa.parse(rdata.trim());
 
   var filtered = [pres.data[0]];
-  for (var i = 1; i < pres.data.length; i++) {
-    var row = pres.data[i];
-    var hasNonZero = row.slice(1).some(function(val) {
-      var num = parseFloat((val || '').trim());
+  for (const row of pres.data) {
+    const hasNonZero = row.slice(1).some(val => {
+      const num = parseFloat((val || '').trim());
       return !isNaN(num) && num !== 0;
     });
     if (hasNonZero) {
