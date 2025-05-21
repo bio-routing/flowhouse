@@ -437,7 +437,21 @@ function showPopup(message, type="danger", timeout=15000, details=null) {
     detailsHtml = `
       <div>
         <a href="#" style="font-size:12px;" onclick="$('#${detailsId}').toggle(); return false;">Show Details</a>
-        <pre id="${detailsId}" style="display:none; background:#f8f9fa; border:1px solid #eee; padding:8px; margin-top:4px; font-size:12px; max-height:200px; overflow:auto;">${$('<div>').text(details).html()}</pre>
+        <pre id="${detailsId}" style="
+          display:none;
+          background:#f8f9fa;
+          border:1px solid #eee;
+          padding:12px;
+          margin-top:4px;
+          font-size:13px;
+          font-family: monospace, monospace;
+          max-height:250px;
+          overflow:auto;
+          white-space:pre-wrap;
+          word-break:break-all;
+          line-height:1.4;
+          border-radius:4px;
+        ">${$('<div>').text(details).html()}</pre>
       </div>
     `;
   }
