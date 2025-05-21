@@ -130,15 +130,22 @@ function drawChart() {
     dataType: "text",
     success: function(rdata, status, xhr) {
       if (rdata == undefined) {
-        $("#chart_div").text("No data found")
-          return
-        }
-      renderChart(rdata)
+        $("#chart_div").text("No data found");
+        return;
+      }
+      renderChart(rdata);
     },
     error: function(xhr) {
-      $("#chart_div").text(xhr.responseText)
+      showPopup(
+        "Internal server error",
+        "danger",
+        20000,
+        xhr.responseText
+      );
+      $("#chart_div").empty();
+      document.getElementById('custom_legend').innerHTML = '';
     }
-  })
+  });
 }
 
 function renderChart(rdata) {
@@ -184,10 +191,12 @@ function renderChart(rdata) {
   }
 
   if (filteredData[0].length < 2) {
-    $("#chart_div").text("No series selected.");
+    showPopup("No series selected. Please select at least one flow to display the chart.", "danger");
+    $("#chart_div").empty();
     document.getElementById('custom_legend').innerHTML = '';
     return;
   }
+
 
   var chartData = google.visualization.arrayToDataTable(filteredData);
 
@@ -417,6 +426,48 @@ function renderChart(rdata) {
 
 function formatTimestamp(date) {
   return date.toISOString().substr(0, 16)
+}
+
+function showPopup(message, type="danger", timeout=15000, details=null) {
+  const container = $("#popup-container");
+  const alertId = "popup-" + Date.now() + Math.floor(Math.random()*10000);
+  let detailsHtml = "";
+  if (details) {
+    const detailsId = alertId + "-details";
+    detailsHtml = `
+      <div>
+        <a href="#" style="font-size:12px;" onclick="$('#${detailsId}').toggle(); return false;">Show Details</a>
+        <pre id="${detailsId}" style="
+          display:none;
+          background:#f8f9fa;
+          border:1px solid #eee;
+          padding:12px;
+          margin-top:4px;
+          font-size:13px;
+          font-family: monospace, monospace;
+          max-height:250px;
+          overflow:auto;
+          white-space:pre-wrap;
+          word-break:break-all;
+          line-height:1.4;
+          border-radius:4px;
+        ">${$('<div>').text(details).html()}</pre>
+      </div>
+    `;
+  }
+  const alert = $(`
+    <div id="${alertId}" class="alert alert-${type} alert-dismissible fade show" role="alert" style="margin-bottom:8px; pointer-events:auto;">
+      <div>${message}</div>
+      ${detailsHtml}
+      <button type="button" class="close" data-dismiss="alert" aria-label="Close" style="pointer-events:auto;">
+        <span aria-hidden="true">&times;</span>
+      </button>
+    </div>
+  `);
+  container.append(alert);
+  setTimeout(() => {
+    alert.alert('close');
+  }, timeout);
 }
 
 function loadValues(filterNum, field) {
