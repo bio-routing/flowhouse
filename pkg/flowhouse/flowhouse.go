@@ -165,7 +165,8 @@ func recoveryMiddleware(next http.Handler) http.Handler {
 func (f *Flowhouse) installHTTPHandlers(fe *frontend.Frontend) {
 	http.HandleFunc("/", fe.IndexHandler)
 	http.HandleFunc("/flowhouse.js", fe.FlowhouseJSHandler)
-	http.Handle("/query", recoveryMiddleware(http.HandlerFunc(fe.QueryHandler)))
+	http.Handle("/query", recoveryMiddleware(http.HandlerFunc(fe.QueryHandler(false))))
+	http.Handle("/query/flat", recoveryMiddleware(http.HandlerFunc(fe.QueryHandler(true))))
 	http.Handle("/dict_values/", recoveryMiddleware(http.HandlerFunc(fe.GetDictValues)))
 	http.Handle("/metrics", promhttp.Handler())
 }

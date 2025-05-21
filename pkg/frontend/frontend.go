@@ -204,25 +204,31 @@ func (fe *Frontend) FlowhouseJSHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // QueryHandler handles query requests
-func (fe *Frontend) QueryHandler(w http.ResponseWriter, r *http.Request) {
-	res, err := fe.processQuery(r)
-	if err != nil {
-		log.WithError(err).Error("Unable to process query")
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
+func (fe *Frontend) QueryHandler(flatCSV bool) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		res, err := fe.processQuery(r)
+		if err != nil {
+			log.WithError(err).Error("Unable to process query")
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
 
-	if res == nil {
-		log.WithError(err).Error("Query returned a nil result")
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
+		if res == nil {
+			log.WithError(err).Error("Query returned a nil result")
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
 
-	err = res.csv(w)
-	if err != nil {
-		log.WithError(err).Errorf("Unable to write CSV")
-		w.WriteHeader(http.StatusInternalServerError)
-		return
+		if flatCSV {
+			err = res.csvFlat(w)
+		} else {
+			err = res.csv(w)
+		}
+		if err != nil {
+			log.WithError(err).Errorf("Unable to write CSV")
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
 	}
 }
 
