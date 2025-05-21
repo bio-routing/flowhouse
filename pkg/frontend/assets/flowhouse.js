@@ -130,15 +130,22 @@ function drawChart() {
     dataType: "text",
     success: function(rdata, status, xhr) {
       if (rdata == undefined) {
-        $("#chart_div").text("No data found")
-          return
-        }
-      renderChart(rdata)
+        $("#chart_div").text("No data found");
+        return;
+      }
+      renderChart(rdata);
     },
     error: function(xhr) {
-      $("#chart_div").text(xhr.responseText)
+      showPopup(
+        "Internal server error",
+        "danger",
+        20000,
+        xhr.responseText
+      );
+      $("#chart_div").empty();
+      document.getElementById('custom_legend').innerHTML = '';
     }
-  })
+  });
 }
 
 function renderChart(rdata) {
@@ -421,12 +428,23 @@ function formatTimestamp(date) {
   return date.toISOString().substr(0, 16)
 }
 
-function showPopup(message, type="danger", timeout=15000) {
+function showPopup(message, type="danger", timeout=15000, details=null) {
   const container = $("#popup-container");
   const alertId = "popup-" + Date.now() + Math.floor(Math.random()*10000);
+  let detailsHtml = "";
+  if (details) {
+    const detailsId = alertId + "-details";
+    detailsHtml = `
+      <div>
+        <a href="#" style="font-size:12px;" onclick="$('#${detailsId}').toggle(); return false;">Show Details</a>
+        <pre id="${detailsId}" style="display:none; background:#f8f9fa; border:1px solid #eee; padding:8px; margin-top:4px; font-size:12px; max-height:200px; overflow:auto;">${$('<div>').text(details).html()}</pre>
+      </div>
+    `;
+  }
   const alert = $(`
     <div id="${alertId}" class="alert alert-${type} alert-dismissible fade show" role="alert" style="margin-bottom:8px; pointer-events:auto;">
-      ${message}
+      <div>${message}</div>
+      ${detailsHtml}
       <button type="button" class="close" data-dismiss="alert" aria-label="Close" style="pointer-events:auto;">
         <span aria-hidden="true">&times;</span>
       </button>
