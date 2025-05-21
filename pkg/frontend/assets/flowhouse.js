@@ -184,10 +184,12 @@ function renderChart(rdata) {
   }
 
   if (filteredData[0].length < 2) {
-    $("#chart_div").text("No series selected.");
+    showPopup("No series selected. Please select at least one flow to display the chart.", "danger");
+    $("#chart_div").empty();
     document.getElementById('custom_legend').innerHTML = '';
     return;
   }
+
 
   var chartData = google.visualization.arrayToDataTable(filteredData);
 
@@ -417,6 +419,23 @@ function renderChart(rdata) {
 
 function formatTimestamp(date) {
   return date.toISOString().substr(0, 16)
+}
+
+function showPopup(message, type="danger", timeout=15000) {
+  const container = $("#popup-container");
+  const alertId = "popup-" + Date.now() + Math.floor(Math.random()*10000);
+  const alert = $(`
+    <div id="${alertId}" class="alert alert-${type} alert-dismissible fade show" role="alert" style="margin-bottom:8px; pointer-events:auto;">
+      ${message}
+      <button type="button" class="close" data-dismiss="alert" aria-label="Close" style="pointer-events:auto;">
+        <span aria-hidden="true">&times;</span>
+      </button>
+    </div>
+  `);
+  container.append(alert);
+  setTimeout(() => {
+    alert.alert('close');
+  }, timeout);
 }
 
 function loadValues(filterNum, field) {
