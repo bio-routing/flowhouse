@@ -64,6 +64,35 @@ func (r *result) csv(w io.Writer) error {
 	return nil
 }
 
+// returns a CSV with just 3 columns: timestamp, dimension, value
+func (r *result) csvFlat(w io.Writer) error {
+	cw := csv.NewWriter(w)
+	defer cw.Flush()
+
+	header := []string{"timestamp", "dimension", "value"}
+	err := cw.Write(header)
+	if err != nil {
+		return err
+	}
+
+	keys := r.getKeysSorted()
+	for _, ts := range r.getTimestampsSorted() {
+		for _, k := range keys {
+			record := []string{
+				ts.Format(time.RFC3339),
+				k,
+				fmt.Sprintf("%d", r.data[ts][k]),
+			}
+			err := cw.Write(record)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
 func (r *result) getKeysSorted() []string {
 	keys := make([]string, len(r.keys))
 	i := 0

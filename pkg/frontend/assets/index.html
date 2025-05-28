@@ -14,6 +14,17 @@
       .table-sm td {
         padding: 0.25rem;
       }
+      .legend-help-tip {
+        position: sticky;
+        top: 0;
+        background: #fff;
+        z-index: 2;
+        padding-bottom: 8px;
+        padding-top: 8px;
+        font-size: 14px;
+        color: #444;
+        border-bottom: 1px solid #ddd;
+      }
     </style>   
   </head>
   <body>
@@ -88,7 +99,10 @@
         <div id="custom_legend"></div>
       </main>
       </div>
-
+      </div>
+      <div 
+      id="popup-container" 
+      style="position:fixed; top:60px; right:24px; z-index:1050; width:350px; pointer-events:none;">
       </div>
           <div style="visibility:hidden" id="filterTemplate">
             <div class="row" id="filter_row[__NUM__]">

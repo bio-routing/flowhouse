@@ -11,6 +11,7 @@ import (
 	bnet "github.com/bio-routing/bio-rd/net"
 	"github.com/bio-routing/flowhouse/pkg/models/flow"
 	"github.com/bio-routing/flowhouse/pkg/packet/ipfix"
+	"github.com/bio-routing/flowhouse/pkg/servers/aggregator"
 	"github.com/bio-routing/tflow2/convert"
 	"github.com/pkg/errors"
 
@@ -40,6 +41,7 @@ type fieldMap struct {
 	srcPort                int
 	dstPort                int
 	samplingPacketInterval int
+	srcTos                 int
 }
 
 type IPFIXServer struct {
@@ -51,6 +53,7 @@ type IPFIXServer struct {
 	output     chan []*flow.Flow
 	wg         sync.WaitGroup
 	stopCh     chan struct{}
+	aggregator *aggregator.Aggregator
 }
 
 // New creates and starts a new `IPFIXServer` instance
@@ -60,6 +63,7 @@ func New(listen string, numReaders int, output chan []*flow.Flow, ifResolver Int
 		ifResolver: ifResolver,
 		stopCh:     make(chan struct{}),
 		output:     output,
+		aggregator: aggregator.New(output),
 	}
 
 	addr, err := net.ResolveUDPAddr("udp", listen)
@@ -96,6 +100,7 @@ func (ipf *IPFIXServer) Stop() {
 	debug.PrintStack()
 	close(ipf.stopCh)
 	ipf.conn.Close()
+	ipf.aggregator.Stop()
 	ipf.wg.Wait()
 }
 
@@ -178,7 +183,6 @@ func (ipf *IPFIXServer) processFlowSets(remote bnet.IP, domainID uint32, flowSet
 func (ipf *IPFIXServer) processFlowSet(template *ipfix.TemplateRecords, records []ipfix.FlowDataRecord, agent bnet.IP, ts int64, packet *ipfix.Packet) {
 	fm := generateFieldMap(template)
 
-	flows := make([]*flow.Flow, 0, len(records))
 	for _, r := range records {
 		/*if template.OptionScopes != nil {
 			if fm.samplingPacketInterval >= 0 {
@@ -236,13 +240,15 @@ func (ipf *IPFIXServer) processFlowSet(template *ipfix.TemplateRecords, records 
 			fl.NextHop = bnet.IPv4FromBytes(convert.Reverse(r.Values[fm.nextHop]))
 		}
 
-		fl.Samplerate = 1000
+		if fm.srcTos >= 0 {
+			fl.TOS = uint8(r.Values[fm.srcTos][0])
+		}
+
+		fl.Samplerate = 2048
 		//fl.Samplerate = ipf.sampleRateCache.Get(agent)
 
-		flows = append(flows, fl)
+		ipf.aggregator.GetIngress() <- fl
 	}
-
-	ipf.output <- flows
 }
 
 // generateFieldMap processes a TemplateRecord and populates a fieldMap accordingly
@@ -265,6 +271,7 @@ func generateFieldMap(template *ipfix.TemplateRecords) *fieldMap {
 		srcPort:                -1,
 		dstPort:                -1,
 		samplingPacketInterval: -1,
+		srcTos:                 -1,
 	}
 
 	i := -1
@@ -306,6 +313,8 @@ func generateFieldMap(template *ipfix.TemplateRecords) *fieldMap {
 			fm.dstAsn = i
 		case ipfix.SamplingPacketInterval:
 			fm.samplingPacketInterval = i
+		case ipfix.SrcTos:
+			fm.srcTos = i
 		}
 	}
 

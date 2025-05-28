@@ -1,4 +1,4 @@
-package sflow
+package aggregator
 
 import (
 	"time"
@@ -11,8 +11,17 @@ const (
 	aggregationWindow = 10 * time.Second
 )
 
-type aggregator struct {
-	data      map[key]*flow.Flow
+type Key struct {
+	Agent    bnet.IP
+	Src      bnet.IP
+	Dst      bnet.IP
+	Sport    uint16
+	Dport    uint16
+	Protocol uint8
+}
+
+type Aggregator struct {
+	data      map[Key]*flow.Flow
 	stopCh    chan struct{}
 	ingress   chan *flow.Flow
 	output    chan []*flow.Flow
@@ -20,9 +29,9 @@ type aggregator struct {
 	timeNow   func() time.Time
 }
 
-func newAggregator(output chan []*flow.Flow) *aggregator {
-	a := &aggregator{
-		data:    make(map[key]*flow.Flow),
+func New(output chan []*flow.Flow) *Aggregator {
+	a := &Aggregator{
+		data:    make(map[Key]*flow.Flow),
 		stopCh:  make(chan struct{}),
 		ingress: make(chan *flow.Flow),
 		output:  output,
@@ -33,31 +42,22 @@ func newAggregator(output chan []*flow.Flow) *aggregator {
 	return a
 }
 
-func (a *aggregator) stop() {
+func (a *Aggregator) Stop() {
 	close(a.stopCh)
 }
 
-type key struct {
-	agent    bnet.IP
-	src      bnet.IP
-	dst      bnet.IP
-	sport    uint16
-	dport    uint16
-	protocol uint8
-}
-
-func flowToKey(fl *flow.Flow) key {
-	return key{
-		agent:    fl.Agent,
-		src:      fl.SrcAddr,
-		dst:      fl.DstAddr,
-		sport:    fl.SrcPort,
-		dport:    fl.DstPort,
-		protocol: fl.Protocol,
+func FlowToKey(fl *flow.Flow) Key {
+	return Key{
+		Agent:    fl.Agent,
+		Src:      fl.SrcAddr,
+		Dst:      fl.DstAddr,
+		Sport:    fl.SrcPort,
+		Dport:    fl.DstPort,
+		Protocol: fl.Protocol,
 	}
 }
 
-func (a *aggregator) isStopped() bool {
+func (a *Aggregator) IsStopped() bool {
 	select {
 	case <-a.stopCh:
 		return true
@@ -66,17 +66,19 @@ func (a *aggregator) isStopped() bool {
 	}
 }
 
-func (a *aggregator) service() {
+func (a *Aggregator) service() {
 	for {
-		if a.isStopped() {
+		if a.IsStopped() {
 			return
 		}
+
 		fl := <-a.ingress
-		a.ingest(fl)
+		a.Ingest(fl)
+
 	}
 }
 
-func (a *aggregator) ingest(fl *flow.Flow) {
+func (a *Aggregator) Ingest(fl *flow.Flow) {
 	normalizedIngestTime := a.timeNow().Truncate(aggregationWindow)
 
 	timeSinceLastFlush := normalizedIngestTime.Sub(a.lastFlush)
@@ -89,8 +91,8 @@ func (a *aggregator) ingest(fl *flow.Flow) {
 	a.add(fl)
 }
 
-func (a *aggregator) add(fl *flow.Flow) {
-	k := flowToKey(fl)
+func (a *Aggregator) add(fl *flow.Flow) {
+	k := FlowToKey(fl)
 
 	if _, exists := a.data[k]; !exists {
 		a.data[k] = fl
@@ -100,7 +102,11 @@ func (a *aggregator) add(fl *flow.Flow) {
 	a.data[k].Add(fl)
 }
 
-func (a *aggregator) flush() {
+func (a *Aggregator) GetIngress() chan<- *flow.Flow {
+	return a.ingress
+}
+
+func (a *Aggregator) flush() {
 	s := make([]*flow.Flow, len(a.data))
 
 	i := 0
@@ -110,5 +116,5 @@ func (a *aggregator) flush() {
 	}
 
 	a.output <- s
-	a.data = make(map[key]*flow.Flow)
+	a.data = make(map[Key]*flow.Flow)
 }

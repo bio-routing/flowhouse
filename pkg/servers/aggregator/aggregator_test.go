@@ -1,4 +1,4 @@
-package sflow
+package aggregator
 
 import (
 	"testing"
@@ -31,10 +31,10 @@ func TestAggregatorBuffering(t *testing.T) {
 	mockedTime := initialTime
 
 	out := make(chan []*flow.Flow, 10)
-	agg := newAggregator(out)
+	agg := New(out)
 	agg.timeNow = func() time.Time { return mockedTime }
 
-	agg.ingest(exampleFlow(t, mockedTime))
+	agg.Ingest(exampleFlow(t, mockedTime))
 	// should have flushed an empty list at the beginning
 	select {
 	case flows := <-out:
@@ -46,13 +46,13 @@ func TestAggregatorBuffering(t *testing.T) {
 	// advance time by 2 seconds
 	mockedTime = mockedTime.Add(2 * time.Second)
 
-	agg.ingest(exampleFlow(t, mockedTime))
+	agg.Ingest(exampleFlow(t, mockedTime))
 	assert.Len(t, out, 0) // should not have flushed
 
 	// advance time by 10 seconds
 	mockedTime = mockedTime.Add(10 * time.Second)
 
-	agg.ingest(exampleFlow(t, mockedTime))
+	agg.Ingest(exampleFlow(t, mockedTime))
 	assert.Len(t, out, 1) // should have flushed once
 
 	// check flushed flows

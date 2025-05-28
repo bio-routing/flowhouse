@@ -19,6 +19,7 @@ import (
 	"github.com/bio-routing/flowhouse/pkg/models/flow"
 	"github.com/bio-routing/flowhouse/pkg/packet/packet"
 	"github.com/bio-routing/flowhouse/pkg/packet/sflow"
+	"github.com/bio-routing/flowhouse/pkg/servers/aggregator"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -36,7 +37,7 @@ type InterfaceResolver interface {
 
 // SflowServer represents a sflow Collector instance
 type SflowServer struct {
-	aggregator               *aggregator
+	aggregator               *aggregator.Aggregator
 	conn                     *net.UDPConn
 	ifResolver               InterfaceResolver
 	wg                       sync.WaitGroup
@@ -58,7 +59,7 @@ type SflowServer struct {
 // New creates and starts a new `SflowServer` instance
 func New(listen string, numReaders int, output chan []*flow.Flow, ifResolver InterfaceResolver) (*SflowServer, error) {
 	sfs := &SflowServer{
-		aggregator: newAggregator(output),
+		aggregator: aggregator.New(output),
 		ifResolver: ifResolver,
 		packetsReceived: promauto.NewCounterVec(prometheus.CounterOpts{
 			Namespace: "flowhouse",
@@ -168,7 +169,7 @@ func (sfs *SflowServer) Stop() {
 	log.Info("Stopping SflowServer")
 	debug.PrintStack()
 	close(sfs.stopCh)
-	sfs.aggregator.stop()
+	sfs.aggregator.Stop()
 	sfs.conn.Close()
 	sfs.wg.Wait()
 }
@@ -282,7 +283,7 @@ func (sfs *SflowServer) processPacket(agent bnet.IP, buffer []byte) {
 		}
 
 		sfs.processEthernet(agentStr, ether.EtherType, fs, fl)
-		sfs.aggregator.ingress <- fl
+		sfs.aggregator.GetIngress() <- fl
 	}
 }
 
@@ -323,6 +324,7 @@ func (sfs *SflowServer) processIPv4Packet(agentStr string, fs *sflow.FlowSample,
 	fs.Data = unsafe.Pointer(uintptr(fs.Data) - packet.SizeOfIPv4Header)
 	fs.DataLen -= uint32(packet.SizeOfIPv4Header)
 
+	fl.TOS = ipv4.TOS
 	fl.SrcAddr, _ = bnet.IPFromBytes(convert.Reverse(ipv4.SrcAddr[:]))
 	fl.DstAddr, _ = bnet.IPFromBytes(convert.Reverse(ipv4.DstAddr[:]))
 	fl.Protocol = uint8(ipv4.Protocol)
@@ -350,6 +352,7 @@ func (sfs *SflowServer) processIPv6Packet(agentStr string, fs *sflow.FlowSample,
 	fs.Data = unsafe.Pointer(uintptr(fs.Data) - packet.SizeOfIPv6Header)
 	fs.DataLen -= uint32(packet.SizeOfIPv6Header)
 
+	fl.TOS = extractTrafficClass(ipv6.VersionTrafficClassFlowLabel)
 	fl.SrcAddr, _ = bnet.IPFromBytes(convert.Reverse(ipv6.SrcAddr[:]))
 	fl.DstAddr, _ = bnet.IPFromBytes(convert.Reverse(ipv6.DstAddr[:]))
 	fl.Protocol = uint8(ipv6.NextHeader)
@@ -365,6 +368,11 @@ func (sfs *SflowServer) processIPv6Packet(agentStr string, fs *sflow.FlowSample,
 			log.WithError(err).Debug("Unable to decode UDP")
 		}
 	}
+}
+
+func extractTrafficClass(versionTrafficClassFlowLabel uint32) uint8 {
+	versionTrafficClassFlowLabel &= 0x0FF00000
+	return uint8(versionTrafficClassFlowLabel >> 20)
 }
 
 func getUDP(udpPtr unsafe.Pointer, length uint32, fl *flow.Flow) error {
@@ -395,14 +403,14 @@ func getTCP(tcpPtr unsafe.Pointer, length uint32, fl *flow.Flow) error {
 func Dump(fl *flow.Flow) {
 	fmt.Printf("--------------------------------\n")
 	fmt.Printf("Flow dump:\n")
-	fmt.Printf("Agent: %d\n", fl.Agent)
+	fmt.Printf("Agent: %s\n", fl.Agent.String())
 	fmt.Printf("Family: %d\n", fl.Family)
 	fmt.Printf("SrcAddr: %s\n", fl.SrcAddr.String())
 	fmt.Printf("DstAddr: %s\n", fl.DstAddr.String())
 	fmt.Printf("Protocol: %d\n", fl.Protocol)
 	fmt.Printf("NextHop: %s\n", fl.NextHop.String())
-	fmt.Printf("IntIn: %d\n", fl.IntIn)
-	fmt.Printf("IntOut: %d\n", fl.IntOut)
+	fmt.Printf("IntIn: %s\n", fl.IntIn)
+	fmt.Printf("IntOut: %s\n", fl.IntOut)
 	fmt.Printf("Packets: %d\n", fl.Packets)
 	fmt.Printf("Bytes: %d\n", fl.Size)
 	fmt.Printf("--------------------------------\n")

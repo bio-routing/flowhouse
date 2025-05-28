@@ -130,39 +130,78 @@ function drawChart() {
     dataType: "text",
     success: function(rdata, status, xhr) {
       if (rdata == undefined) {
-        $("#chart_div").text("No data found")
-          return
-        }
-      renderChart(rdata)
+        $("#chart_div").text("No data found");
+        return;
+      }
+      renderChart(rdata);
     },
     error: function(xhr) {
-      $("#chart_div").text(xhr.responseText)
+      showPopup(
+        "Internal server error",
+        "danger",
+        20000,
+        xhr.responseText
+      );
+      $("#chart_div").empty();
+      document.getElementById('custom_legend').innerHTML = '';
     }
-  })
+  });
 }
 
 function renderChart(rdata) {
-  pres = Papa.parse(rdata.trim())
+  pres = Papa.parse(rdata.trim());
+
+  var filtered = [pres.data[0]];
+  for (const row of pres.data) {
+    const hasNonZero = row.slice(1).some(val => {
+      const num = parseFloat((val || '').trim());
+      return !isNaN(num) && num !== 0;
+    });
+    if (hasNonZero) {
+      filtered.push(row);
+    }
+  }
 
   var data = [];
-  for (var i = 0; i < pres.data.length; i++) {
-    for (var j = 0; j < pres.data[i].length; j++) {
-      if (j == 0) {
-        data[i] = [];
-      }
-      x = pres.data[i][j];
-      if (i != 0) {
-        if (j != 0) {
-          x = parseInt(x)
-        }
+  for (var i = 0; i < filtered.length; i++) {
+    data[i] = [];
+    for (var j = 0; j < filtered[i].length; j++) {
+      var x = filtered[i][j];
+      if (i !== 0 && j !== 0) {
+        x = parseFloat((x || '').trim());
+        if (isNaN(x)) x = 0;
       }
       data[i][j] = x;
     }
   }
 
-  data = google.visualization.arrayToDataTable(data);
+  if (!window.seriesVisibility || window.seriesVisibility.length !== data[0].length - 1) {
+    window.seriesVisibility = Array(data[0].length - 1).fill(true);
+  }
+
+  var filteredData = [];
+  for (var i = 0; i < data.length; i++) {
+    var row = [data[i][0]];
+    for (var j = 1; j < data[i].length; j++) {
+      if (window.seriesVisibility[j - 1]) {
+        row.push(data[i][j]);
+      }
+    }
+    filteredData.push(row);
+  }
+
+  if (filteredData[0].length < 2) {
+    showPopup("No series selected. Please select at least one flow to display the chart.", "danger");
+    $("#chart_div").empty();
+    document.getElementById('custom_legend').innerHTML = '';
+    return;
+  }
+
+
+  var chartData = google.visualization.arrayToDataTable(filteredData);
+
   var options = {
-    isStacked: true,
+    isStacked: false,
     title: 'Flow Mbps',
     titleTextStyle: {
       fontSize: 24,
@@ -171,11 +210,14 @@ function renderChart(rdata) {
     },
     hAxis: {
       title: 'Time',
+      slantedText: true,
+      slantedTextAngle: 60,
+      showTextEvery: 10,
       titleTextStyle: {
         color: '#333',
         italic: false,
         bold: true,
-        fontSize: 14
+        fontSize: 18
       },
       gridlines: {
         color: '#f3f3f3',
@@ -184,7 +226,6 @@ function renderChart(rdata) {
       minorGridlines: {
         color: '#e9e9e9'
       },
-      format: 'HH:mm:ss',
       textStyle: {
         color: '#333',
         fontSize: 12
@@ -197,7 +238,7 @@ function renderChart(rdata) {
         color: '#333',
         italic: false,
         bold: true,
-        fontSize: 14
+        fontSize: 18
       },
       gridlines: {
         color: '#f3f3f3',
@@ -239,7 +280,7 @@ function renderChart(rdata) {
       showColorCode: true
     },
     lineWidth: 2,
-    pointSize: 2,
+    pointSize: 1,
     series: {
       0: { lineDashStyle: [4, 4] },
       1: { lineDashStyle: [2, 2] },
@@ -250,44 +291,183 @@ function renderChart(rdata) {
   };
 
   var chart = new google.visualization.AreaChart(document.getElementById('chart_div'));
-  chart.draw(data, options);
+  chart.draw(chartData, options);
 
-  const customLegendDiv = document.getElementById('custom_legend');
-  customLegendDiv.innerHTML = ''; // Clear any existing legend
-  const colors = options.colors;
-  const columns = data.getNumberOfColumns();
+  renderLegendTable();
 
-  const table = document.createElement('table');
-  table.classList.add('table', 'table-sm', 'table-bordered');
-  const tbody = document.createElement('tbody');
-
-  for (let i = 1; i < columns; i++) {
-    const row = document.createElement('tr');
-    const colorCell = document.createElement('td');
-    colorCell.style.backgroundColor = colors[(i - 1) % colors.length];
-    colorCell.style.width = '20px';
-    const labelCell = document.createElement('td');
-    labelCell.textContent = data.getColumnLabel(i);
-    row.appendChild(colorCell);
-    row.appendChild(labelCell);
-    tbody.appendChild(row);
-
-    (function(seriesIndex) {
-      row.addEventListener('mouseover', function() {
-        highlightSeries(chart, data, options, seriesIndex);
+  function renderLegendTable() {
+    const flowStats = [];
+    for (let i = 1; i < data[0].length; i++) {
+      let max = -Infinity;
+      for (let j = 1; j < data.length; j++) {
+        const val = data[j][i];
+        if (typeof val === "number" && !isNaN(val)) {
+          if (val > max) max = val;
+        }
+      }
+      flowStats.push({
+        index: i,
+        label: data[0][i],
+        max: max === -Infinity ? 0 : max
       });
-      row.addEventListener('mouseout', function() {
-        resetHighlight(chart, data, options);
+    }
+
+    // Sorting logic
+    if (!window.legendSort) window.legendSort = { key: "label", asc: true };
+    const sortKey = window.legendSort.key;
+    const sortAsc = window.legendSort.asc;
+
+    flowStats.sort((a, b) => {
+      switch (sortKey) {
+        case "label":
+          return sortAsc
+            ? a.label.localeCompare(b.label)
+            : b.label.localeCompare(a.label);
+        case "max":
+          return sortAsc
+            ? a.max - b.max
+            : b.max - a.max;
+        default:
+          return 0;
+      }
+    });
+
+    const customLegendDiv = document.getElementById('custom_legend');
+    customLegendDiv.innerHTML = `
+    <div class="legend-help-tip">
+      <strong>Usage:</strong><br>
+      <span style="color:#2196F3;font-weight:bold;">• Click a flow</span> to show only that flow. Click again to show all.<br>
+      <span style="color:#4CAF50;font-weight:bold;">• Ctrl/Cmd/Option + Click</span> to add or remove flows.<br>
+      <span style="color:#FF5722;font-weight:bold;">• Click a column header</span> to sort the legend.
+    </div>
+    `;
+
+    const colors = options.colors;
+    const table = document.createElement('table');
+    table.classList.add('table', 'table-sm', 'table-bordered');
+    const thead = document.createElement('thead');
+    const headRow = document.createElement('tr');
+
+    function makeHeaderCell(text, key) {
+      const th = document.createElement('th');
+      th.textContent = text;
+      th.style.cursor = 'pointer';
+      th.style.userSelect = 'none';
+      th.addEventListener('click', (e) => {
+        if (window.legendSort.key === key) {
+          window.legendSort.asc = !window.legendSort.asc;
+        } else {
+          window.legendSort.key = key;
+          // Default: sort by MAX Mbps descending, FLOW ascending
+          window.legendSort.asc = (key === 'label');
+        }
+        renderLegendTable();
+        e.stopPropagation();
       });
-    })(i - 1);
+      if (window.legendSort.key === key) {
+        th.textContent += window.legendSort.asc ? ' ▲' : ' ▼';
+      }
+      return th;
+    }
+
+    headRow.appendChild(document.createElement('th')); // color cell (empty)
+    headRow.appendChild(makeHeaderCell('FLOW', 'label'));
+    headRow.appendChild(makeHeaderCell('MAX Mbps', 'max'));
+    thead.appendChild(headRow);
+
+    const tbody = document.createElement('tbody');
+
+    for (const stat of flowStats) {
+      const i = stat.index;
+      const row = document.createElement('tr');
+      const colorCell = document.createElement('td');
+      colorCell.style.backgroundColor = colors[(i - 1) % colors.length];
+      colorCell.style.width = '20px';
+      const labelCell = document.createElement('td');
+      labelCell.textContent = stat.label;
+      const maxCell = document.createElement('td');
+      maxCell.textContent = stat.max.toFixed(1);
+      row.appendChild(colorCell);
+      row.appendChild(labelCell);
+      row.appendChild(maxCell);
+      tbody.appendChild(row);
+
+      if (!window.seriesVisibility[i - 1]) {
+        row.style.opacity = '0.4';
+      } else {
+        row.style.opacity = '1.0';
+      }
+
+      row.addEventListener('click', function(event) {
+        const visibleCount = window.seriesVisibility.filter(Boolean).length;
+        if (event.ctrlKey || event.metaKey || event.altKey) {
+          if (window.seriesVisibility[i - 1] && visibleCount === 1) {
+            window.seriesVisibility = Array(data[0].length - 1).fill(true);
+          } else {
+            window.seriesVisibility[i - 1] = !window.seriesVisibility[i - 1];
+          }
+        } else {
+          if (window.seriesVisibility[i - 1] && visibleCount === 1) {
+            window.seriesVisibility = Array(data[0].length - 1).fill(true);
+          } else {
+            window.seriesVisibility = Array(data[0].length - 1).fill(false);
+            window.seriesVisibility[i - 1] = true;
+          }
+        }
+        renderChart(rdata);
+      });
+    }
+
+    table.appendChild(thead);
+    table.appendChild(tbody);
+    customLegendDiv.appendChild(table);
   }
-
-  table.appendChild(tbody);
-  customLegendDiv.appendChild(table);
 }
 
 function formatTimestamp(date) {
   return date.toISOString().substr(0, 16)
+}
+
+function showPopup(message, type="danger", timeout=15000, details=null) {
+  const container = $("#popup-container");
+  const alertId = "popup-" + Date.now() + Math.floor(Math.random()*10000);
+  let detailsHtml = "";
+  if (details) {
+    const detailsId = alertId + "-details";
+    detailsHtml = `
+      <div>
+        <a href="#" style="font-size:12px;" onclick="$('#${detailsId}').toggle(); return false;">Show Details</a>
+        <pre id="${detailsId}" style="
+          display:none;
+          background:#f8f9fa;
+          border:1px solid #eee;
+          padding:12px;
+          margin-top:4px;
+          font-size:13px;
+          font-family: monospace, monospace;
+          max-height:250px;
+          overflow:auto;
+          white-space:pre-wrap;
+          word-break:break-all;
+          line-height:1.4;
+          border-radius:4px;
+        ">${$('<div>').text(details).html()}</pre>
+      </div>
+    `;
+  }
+  const alert = $(`
+    <div id="${alertId}" class="alert alert-${type} alert-dismissible fade show" role="alert" style="margin-bottom:8px; pointer-events:auto;">
+      <div>${message}</div>
+      ${detailsHtml}
+      <button type="button" class="close" data-dismiss="alert" aria-label="Close" style="pointer-events:auto;">
+        <span aria-hidden="true">&times;</span>
+      </button>
+    </div>
+  `);
+  container.append(alert);
+  setTimeout(() => {
+    alert.alert('close');
+  }, timeout);
 }
 
 function loadValues(filterNum, field) {

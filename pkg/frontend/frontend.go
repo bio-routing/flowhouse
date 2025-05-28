@@ -50,6 +50,16 @@ func init() {
 			ShortLabel: "Int.Out",
 		},
 		{
+			Name:       "tos",
+			Label:      "Type of Service",
+			ShortLabel: "TOS",
+		},
+		{
+			Name:       "dscp",
+			Label:      "Differentiated Services Code Point",
+			ShortLabel: "DSCP",
+		},
+		{
 			Name:       "src_ip_addr",
 			Label:      "Source IP",
 			ShortLabel: "Src.IP",
@@ -204,25 +214,31 @@ func (fe *Frontend) FlowhouseJSHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // QueryHandler handles query requests
-func (fe *Frontend) QueryHandler(w http.ResponseWriter, r *http.Request) {
-	res, err := fe.processQuery(r)
-	if err != nil {
-		log.WithError(err).Error("Unable to process query")
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
+func (fe *Frontend) QueryHandler(flatCSV bool) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		res, err := fe.processQuery(r)
+		if err != nil {
+			log.WithError(err).Error("Unable to process query")
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
 
-	if res == nil {
-		log.WithError(err).Error("Query returned a nil result")
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
+		if res == nil {
+			log.WithError(err).Error("Query returned a nil result")
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
 
-	err = res.csv(w)
-	if err != nil {
-		log.WithError(err).Errorf("Unable to write CSV")
-		w.WriteHeader(http.StatusInternalServerError)
-		return
+		if flatCSV {
+			err = res.csvFlat(w)
+		} else {
+			err = res.csv(w)
+		}
+		if err != nil {
+			log.WithError(err).Errorf("Unable to write CSV")
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
 	}
 }
 
@@ -349,15 +365,15 @@ func getReadableLabel(label string) string {
 
 func (fe *Frontend) fieldsToQuery(fields url.Values) (string, error) {
 	if _, exists := fields["breakdown"]; !exists {
-		return "", fmt.Errorf("No breakdown set")
+		return "", fmt.Errorf("no breakdown set")
 	}
 
 	if _, exists := fields["time_start"]; !exists {
-		return "", fmt.Errorf("No start time given")
+		return "", fmt.Errorf("no start time given")
 	}
 
 	if _, exists := fields["time_end"]; !exists {
-		return "", fmt.Errorf("No end time given")
+		return "", fmt.Errorf("no end time given")
 	}
 
 	start, err := timeFieldToTimestamp(fields["time_start"][0])
@@ -403,10 +419,7 @@ func (fe *Frontend) fieldsToQuery(fields url.Values) (string, error) {
 	groupBy := make([]string, 0)
 	groupBy = append(groupBy, "t")
 	if breakdown, ok := fields["breakdown"]; ok {
-		for _, f := range breakdown {
-			//f = resolveVirtualField(f)
-			groupBy = append(groupBy, f)
-		}
+		groupBy = append(groupBy, breakdown...)
 	}
 
 	q := "SELECT %s FROM %s.flows WHERE %s GROUP BY %s ORDER BY mbps DESC LIMIT 10000"

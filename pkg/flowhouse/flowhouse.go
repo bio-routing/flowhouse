@@ -1,8 +1,10 @@
 package flowhouse
 
 import (
+	"fmt"
 	"net/http"
 	"runtime"
+	"runtime/debug"
 	"time"
 
 	"github.com/bio-routing/bio-rd/util/grpc/clientmanager"
@@ -146,10 +148,25 @@ func (f *Flowhouse) Run() {
 	}
 }
 
+func recoveryMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if err := recover(); err != nil {
+				log.Printf("PANIC: %v\n%s", err, debug.Stack())
+				http.Error(w,
+					fmt.Sprintf("Internal server error: %v", err),
+					http.StatusInternalServerError)
+			}
+		}()
+		next.ServeHTTP(w, r)
+	})
+}
+
 func (f *Flowhouse) installHTTPHandlers(fe *frontend.Frontend) {
 	http.HandleFunc("/", fe.IndexHandler)
 	http.HandleFunc("/flowhouse.js", fe.FlowhouseJSHandler)
-	http.HandleFunc("/query", fe.QueryHandler)
-	http.HandleFunc("/dict_values/", fe.GetDictValues)
+	http.Handle("/query", recoveryMiddleware(http.HandlerFunc(fe.QueryHandler(false))))
+	http.Handle("/query/flat", recoveryMiddleware(http.HandlerFunc(fe.QueryHandler(true))))
+	http.Handle("/dict_values/", recoveryMiddleware(http.HandlerFunc(fe.GetDictValues)))
 	http.Handle("/metrics", promhttp.Handler())
 }
