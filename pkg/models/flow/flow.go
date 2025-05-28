@@ -9,6 +9,7 @@ import (
 // Flow defines a network flow
 type Flow struct {
 	Agent      bnet.IP
+	TOS        uint8
 	SrcPort    uint16
 	DstPort    uint16
 	SrcAs      uint32
@@ -49,6 +50,7 @@ func (fl *Flow) Dump() {
 	fmt.Printf("NextHop: %s\n", fl.NextHop.String())
 	fmt.Printf("IntIn: %s\n", fl.IntIn)
 	fmt.Printf("IntOut: %s\n", fl.IntOut)
+	fmt.Printf("TOS/COS: %d\n", fl.TOS)
 	fmt.Printf("Packets: %d\n", fl.Packets)
 	fmt.Printf("Bytes: %d\n", fl.Size)
 	fmt.Printf("--------------------------------\n")
