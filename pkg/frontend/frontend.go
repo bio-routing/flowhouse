@@ -528,10 +528,14 @@ func resolveVirtualField(f string) string {
 }
 
 func timeFieldToTimestamp(v string) (int64, error) {
-	v += ":00+00:00" // FIXME: Make this configurable
-	t, err := time.Parse(time.RFC3339, v)
+	t, err := time.Parse(time.RFC3339Nano, v) // try parsing ISO datetime
 	if err != nil {
-		return 0, errors.Wrapf(err, "Unable to parse %q", v)
+		// fallback to old format
+		v += ":00+00:00"
+		t, err = time.Parse(time.RFC3339, v)
+		if err != nil {
+			return 0, errors.Wrapf(err, "Unable to parse %q", v)
+		}
 	}
 
 	return t.Unix(), nil
