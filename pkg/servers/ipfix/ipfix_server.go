@@ -160,7 +160,7 @@ func (ipf *IPFIXServer) processPacket(agent bnet.IP, buffer []byte) {
 }
 
 // processFlowSets iterates over flowSets and calls processFlowSet() for each flow set
-func (ipf *IPFIXServer) processFlowSets(remote bnet.IP, domainID uint32, flowSets []*ipfix.Set, ts int64, packet *ipfix.Packet) {
+func (ipf *IPFIXServer) processFlowSets(remote bnet.IP, domainID uint32, flowSets []*ipfix.FlowSet, ts int64, packet *ipfix.Packet) {
 	addr := remote.String()
 	keyParts := make([]string, 3)
 	for _, set := range flowSets {
@@ -374,7 +374,7 @@ func generateFieldMap(template *ipfix.TemplateRecords) *fieldMap {
 func (ipf *IPFIXServer) updateTemplateCache(remote bnet.IP, p *ipfix.Packet) {
 	templRecs := p.GetTemplateRecords()
 	for _, tr := range templRecs {
-		ipf.tmplCache.set(remote, tr.Packet.Header.DomainID, tr.Header.TemplateID, *tr)
+		ipf.tmplCache.set(remote, p.Header.DomainID, tr.Header.TemplateID, *tr)
 	}
 }
 

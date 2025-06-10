@@ -19,10 +19,10 @@
 //
 // Examples of IPFIX packets:
 //
-//   1. An IPFIX Message consisting of interleaved Template, Data, and
-//      Options Template Sets, as shown in Figure C.  Here, Template and
-//      Options Template Sets are transmitted "on demand", before the
-//      first Data Set whose structure they define.
+//  1. An IPFIX Message consisting of interleaved Template, Data, and
+//     Options Template Sets, as shown in Figure C.  Here, Template and
+//     Options Template Sets are transmitted "on demand", before the
+//     first Data Set whose structure they define.
 //
 //     +--------+--------------------------------------------------------+
 //     |        | +----------+ +---------+     +-----------+ +---------+ |
@@ -32,119 +32,119 @@
 //     |        | +----------+ +---------+     +-----------+ +---------+ |
 //     +--------+--------------------------------------------------------+
 //
-//       +--------+----------------------------------------------+
-//       |        | +---------+     +---------+      +---------+ |
-//       |Message | | Data    |     | Data    |      | Data    | |
-//       | Header | | Set     | ... | Set     | ...  | Set     | |
-//       |        | +---------+     +---------+      +---------+ |
-//       +--------+----------------------------------------------+
+//     +--------+----------------------------------------------+
+//     |        | +---------+     +---------+      +---------+ |
+//     |Message | | Data    |     | Data    |      | Data    | |
+//     | Header | | Set     | ... | Set     | ...  | Set     | |
+//     |        | +---------+     +---------+      +---------+ |
+//     +--------+----------------------------------------------+
 //
-//                    Figure D: IPFIX Message: Example 2
+//     Figure D: IPFIX Message: Example 2
 //
-//   3. An IPFIX Message consisting entirely of Template and Options
-//      Template Sets, as shown in Figure E.  Such a message can be used
-//      to define or redefine Templates and Options Templates in bulk.
+//  3. An IPFIX Message consisting entirely of Template and Options
+//     Template Sets, as shown in Figure E.  Such a message can be used
+//     to define or redefine Templates and Options Templates in bulk.
 //
-//      +--------+-------------------------------------------------+
-//      |        | +----------+     +----------+      +----------+ |
-//      |Message | | Template |     | Template |      | Options  | |
-//      | Header | | Set      | ... | Set      | ...  | Template | |
-//      |        | |          |     |          |      | Set      | |
-//      |        | +----------+     +----------+      +----------+ |
-//      +--------+-------------------------------------------------+
-//
+//     +--------+-------------------------------------------------+
+//     |        | +----------+     +----------+      +----------+ |
+//     |Message | | Template |     | Template |      | Options  | |
+//     | Header | | Set      | ... | Set      | ...  | Template | |
+//     |        | |          |     |          |      | Set      | |
+//     |        | +----------+     +----------+      +----------+ |
+//     +--------+-------------------------------------------------+
 //
 // Example of struct hierarchy after packet decoding:
-//  Package
-//  |
-//  +--TemplateFlowSet
-//  |  |
-//  |  +--TemplateRecord
-//  |  |  |
-//  |  |  +--Field
-//  |  |  +--...
-//  |  |  +--Field
-//  |  |
-//  |  +--...
-//  |  |
-//  |  +--TemplateRecord
-//  |     |
-//  |     +--Field
-//  |     +--...
-//  |     +--Field
-//  |
-//  +--DataFlowSet
-//  |
-//  +--...
-//  |
-//  +--OptionsTemplateFlowSet
-//  |  |
-//  |  +--OptionsTemplateRecord
-//  |  |  |
-//  |  |  +--Field (scope)
-//  |  |  +--...   (scope)
-//  |  |  +--Field (scope)
-//  |  |  |
-//  |  |  +--Field (option)
-//  |  |  +--...   (option)
-//  |  |  +--Field (option)
-//  |  |
-//  |  +--...
-//  |  |
-//  |  +--OptionsTemplateRecord
-//  |     |
-//  |     +--Field (scope)
-//  |     +--...   (scope)
-//  |     +--Field (scope)
-//  |     |
-//  |     +--Field (option)
-//  |     +--...   (option)
-//  |     +--Field (option)
-//  |
-//  +--DataFlowSet
+//
+//	Package
+//	|
+//	+--TemplateFlowSet
+//	|  |
+//	|  +--TemplateRecord
+//	|  |  |
+//	|  |  +--Field
+//	|  |  +--...
+//	|  |  +--Field
+//	|  |
+//	|  +--...
+//	|  |
+//	|  +--TemplateRecord
+//	|     |
+//	|     +--Field
+//	|     +--...
+//	|     +--Field
+//	|
+//	+--DataFlowSet
+//	|
+//	+--...
+//	|
+//	+--OptionsTemplateFlowSet
+//	|  |
+//	|  +--OptionsTemplateRecord
+//	|  |  |
+//	|  |  +--Field (scope)
+//	|  |  +--...   (scope)
+//	|  |  +--Field (scope)
+//	|  |  |
+//	|  |  +--Field (option)
+//	|  |  +--...   (option)
+//	|  |  +--Field (option)
+//	|  |
+//	|  +--...
+//	|  |
+//	|  +--OptionsTemplateRecord
+//	|     |
+//	|     +--Field (scope)
+//	|     +--...   (scope)
+//	|     +--Field (scope)
+//	|     |
+//	|     +--Field (option)
+//	|     +--...   (option)
+//	|     +--Field (option)
+//	|
+//	+--DataFlowSet
 //
 // When matched with appropriate template Data FlowSet can be decoded to list of
 // Flow Data Records or list of Options Data Records. Struct hierarchy example:
 //
-//  []FlowDataRecord
-//    |
-//    +--FlowDataRecord
-//    |  |
-//    |  +--[]byte
-//    |  +--...
-//    |  +--[]byte
-//    |
-//    +--...
-//    |
-//    +--FlowDataRecord
-//       |
-//       +--[]byte
-//       +--...
-//       +--[]byte
+//	[]FlowDataRecord
+//	  |
+//	  +--FlowDataRecord
+//	  |  |
+//	  |  +--[]byte
+//	  |  +--...
+//	  |  +--[]byte
+//	  |
+//	  +--...
+//	  |
+//	  +--FlowDataRecord
+//	     |
+//	     +--[]byte
+//	     +--...
+//	     +--[]byte
 //
-//  []OptionsDataRecord
-//    |
-//    +--OptionsDataRecord
-//    |  |
-//    |  +--[]byte (scope)
-//    |  +--...    (scope)
-//    |  +--[]byte (scope)
-//    |  |
-//    |  +--[]byte (option)
-//    |  +--...    (option)
-//    |  +--[]byte (option)
-//    |
-//    +--...
-//    |
-//    +--OptionsDataRecord
-//       |
-//       +--[]byte
-//       +--...
-//       +--[]byte
-//       |
-//       +--[]byte (option)
-//       +--...    (option)
-//       +--[]byte (option)
+//	[]OptionsDataRecord
+//	  |
+//	  +--OptionsDataRecord
+//	  |  |
+//	  |  +--[]byte (scope)
+//	  |  +--...    (scope)
+//	  |  +--[]byte (scope)
+//	  |  |
+//	  |  +--[]byte (option)
+//	  |  +--...    (option)
+//	  |  +--[]byte (option)
+//	  |
+//	  +--...
+//	  |
+//	  +--OptionsDataRecord
+//	     |
+//	     +--[]byte
+//	     +--...
+//	     +--[]byte
+//	     |
+//	     +--[]byte (option)
+//	     +--...    (option)
+//	     +--[]byte (option)
 //
 // Most of structure names and comments are taken directly from RFC 7011.
 // Reading the IPFIX protocol specification is highly recommended before
@@ -174,19 +174,19 @@ type Header struct {
 	Version uint16
 }
 
-// Set represents a Set as described in RFC7011
-type Set struct {
-	Header  *SetHeader
+// FlowSet represents a FlowSet as described in RFC7011
+type FlowSet struct {
+	Header  *FlowSetHeader
 	Records []byte
 }
 
-// SetHeader is a decoded representation of the header of a Set
-type SetHeader struct {
+// FlowSetHeader is a decoded representation of the header of a Set
+type FlowSetHeader struct {
 	Length uint16
 	SetID  uint16
 }
 
-var sizeOfSetHeader = unsafe.Sizeof(SetHeader{})
+var sizeOfFlowSetHeader = unsafe.Sizeof(FlowSetHeader{})
 
 // Packet is a decoded representation of a single NetFlow v9 UDP packet.
 type Packet struct {
@@ -195,11 +195,15 @@ type Packet struct {
 
 	// A slice of pointers to FlowSet. Each element is instance of (Data)FlowSet
 	// found in this packet
-	FlowSets []*Set
+	FlowSets []*FlowSet
 
 	// A slice of pointers to TemplateRecords. Each element is instance of TemplateRecords
 	// representing a template found in this packet.
 	Templates []*TemplateRecords
+
+	// A slice of pointers to OptionsTemplateRecords. Each element is instance of OptionsTemplateRecords
+	// representing an options template found in this packet.
+	OptionsTemplateRecords []*OptionsTemplateRecords
 
 	// Buffer is a slice pointing to the original byte array that this packet was decoded from.
 	// This field is only populated if debug level is at least 2
@@ -217,6 +221,6 @@ func (p *Packet) GetTemplateRecords() []*TemplateRecords {
 // DataFlowSets generate a list of all Data FlowSets in the packet. If matched
 // with appropriate templates Data FlowSets can be decoded to Data Records or
 // Options Data Records.
-func (p *Packet) DataFlowSets() []*Set {
+func (p *Packet) DataFlowSets() []*FlowSet {
 	return p.FlowSets
 }
