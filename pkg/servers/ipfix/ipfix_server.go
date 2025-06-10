@@ -42,6 +42,10 @@ type fieldMap struct {
 	dstPort                int
 	samplingPacketInterval int
 	srcTos                 int
+	srcMask                int
+	dstMask                int
+	srcMask6               int
+	dstMask6               int
 }
 
 type IPFIXServer struct {
@@ -158,7 +162,7 @@ func (ipf *IPFIXServer) processPacket(agent bnet.IP, buffer []byte) {
 // processFlowSets iterates over flowSets and calls processFlowSet() for each flow set
 func (ipf *IPFIXServer) processFlowSets(remote bnet.IP, domainID uint32, flowSets []*ipfix.Set, ts int64, packet *ipfix.Packet) {
 	addr := remote.String()
-	keyParts := make([]string, 3, 3)
+	keyParts := make([]string, 3)
 	for _, set := range flowSets {
 		template := ipf.tmplCache.get(remote, domainID, set.Header.SetID)
 
@@ -244,8 +248,41 @@ func (ipf *IPFIXServer) processFlowSet(template *ipfix.TemplateRecords, records 
 			fl.TOS = uint8(r.Values[fm.srcTos][0])
 		}
 
-		fl.Samplerate = 2048
-		//fl.Samplerate = ipf.sampleRateCache.Get(agent)
+		if fm.dstAsn >= 0 {
+			fl.DstAs = convert.Uint32(r.Values[fm.dstAsn])
+		}
+
+		if fm.srcAsn >= 0 {
+			fl.SrcAs = convert.Uint32(r.Values[fm.srcAsn])
+		}
+
+		if fm.srcMask > 0 {
+			mask := uint8(r.Values[fm.srcMask][0])
+			p := bnet.NewPfx(fl.SrcAddr, mask)
+			p.BaseAddr()
+			fl.SrcPfx = bnet.NewPfx(*p.BaseAddr(), mask)
+		}
+
+		if fm.dstMask > 0 {
+			mask := uint8(r.Values[fm.dstMask][0])
+			p := bnet.NewPfx(fl.DstAddr, mask)
+			p.BaseAddr()
+			fl.DstPfx = bnet.NewPfx(*p.BaseAddr(), mask)
+		}
+
+		if fm.srcMask6 > 0 {
+			mask := uint8(r.Values[fm.srcMask6][0])
+			p := bnet.NewPfx(fl.SrcAddr, mask)
+			p.BaseAddr()
+			fl.SrcPfx = bnet.NewPfx(*p.BaseAddr(), mask)
+		}
+
+		if fm.dstMask6 > 0 {
+			mask := uint8(r.Values[fm.dstMask6][0])
+			p := bnet.NewPfx(fl.DstAddr, mask)
+			p.BaseAddr()
+			fl.DstPfx = bnet.NewPfx(*p.BaseAddr(), mask)
+		}
 
 		ipf.aggregator.GetIngress() <- fl
 	}
@@ -272,6 +309,10 @@ func generateFieldMap(template *ipfix.TemplateRecords) *fieldMap {
 		dstPort:                -1,
 		samplingPacketInterval: -1,
 		srcTos:                 -1,
+		srcMask:                -1,
+		dstMask:                -1,
+		srcMask6:               -1,
+		dstMask6:               -1,
 	}
 
 	i := -1
@@ -315,6 +356,14 @@ func generateFieldMap(template *ipfix.TemplateRecords) *fieldMap {
 			fm.samplingPacketInterval = i
 		case ipfix.SrcTos:
 			fm.srcTos = i
+		case ipfix.SrcMask:
+			fm.srcMask = i
+		case ipfix.DstMask:
+			fm.dstMask = i
+		case ipfix.IPv6SrcMask:
+			fm.srcMask6 = i
+		case ipfix.IPv6DstMask:
+			fm.dstMask6 = i
 		}
 	}
 
