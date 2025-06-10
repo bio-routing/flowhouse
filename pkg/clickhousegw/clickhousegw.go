@@ -91,7 +91,7 @@ func (c *ClickHouseGateway) getCreateTableSchemaDDL(isBaseTable bool, zookeeperP
 			int_in          String,
 			int_out         String,
 			tos             UInt8,
-			dscp            Uint8,
+			dscp            UInt8,
 			src_ip_addr     IPv6,
 			dst_ip_addr     IPv6,
 			src_ip_pfx_addr IPv6,
