@@ -44,7 +44,7 @@ func Decode(raw []byte) (*Packet, error) {
 	buffer := [1500]byte{}
 
 	if pSize > bufSize {
-		panic("Buffer too small\n")
+		panic("Buffer too small")
 	}
 
 	// copy data into array as arrays allow us to cast the shit out of it
@@ -66,23 +66,28 @@ func Decode(raw []byte) (*Packet, error) {
 
 	//Pre-allocate some room for templates to avoid later copying
 	packet.Templates = make([]*TemplateRecords, 0, numPreAllocRecs)
+	packet.OptionsTemplateRecords = make([]*OptionsTemplateRecords, 0)
 
 	for uintptr(headerPtr) > uintptr(bufferMinPtr) {
-		ptr := unsafe.Pointer(uintptr(headerPtr) - sizeOfSetHeader)
+		ptr := unsafe.Pointer(uintptr(headerPtr) - sizeOfFlowSetHeader)
 
-		fls := &Set{
-			Header: (*SetHeader)(ptr),
+		fls := &FlowSet{
+			Header: (*FlowSetHeader)(ptr),
 		}
 
-		if fls.Header.SetID == TemplateSetID {
-			// Template
-			err := decodeTemplate(&packet, ptr, uintptr(fls.Header.Length)-sizeOfSetHeader)
+		switch fls.Header.SetID {
+		case TemplateSetID:
+			err := decodeTemplate(&packet, ptr, uintptr(fls.Header.Length)-sizeOfFlowSetHeader)
 			if err != nil {
 				return nil, errors.Wrap(err, "Unable to decode template")
 			}
-		} else if fls.Header.SetID > SetIDTemplateMax {
-			// Actual data packet
-			decodeData(&packet, ptr, uintptr(fls.Header.Length)-sizeOfSetHeader)
+		case OptionsTemplateSetID:
+			err := decodeOptionsTemplate(&packet, ptr, uintptr(fls.Header.Length)-sizeOfFlowSetHeader)
+			if err != nil {
+				return nil, errors.Wrap(err, "Unable to decode template")
+			}
+		default:
+			decodeData(&packet, ptr, uintptr(fls.Header.Length)-sizeOfFlowSetHeader)
 		}
 
 		headerPtr = unsafe.Pointer(uintptr(headerPtr) - uintptr(fls.Header.Length))
@@ -93,42 +98,71 @@ func Decode(raw []byte) (*Packet, error) {
 
 // decodeData decodes a flowSet from `packet`
 func decodeData(packet *Packet, headerPtr unsafe.Pointer, size uintptr) {
-	flsh := (*SetHeader)(unsafe.Pointer(headerPtr))
+	flsh := (*FlowSetHeader)(unsafe.Pointer(headerPtr))
 	data := unsafe.Pointer(uintptr(headerPtr) - uintptr(flsh.Length))
 
-	fls := &Set{
+	fls := &FlowSet{
 		Header:  flsh,
-		Records: (*(*[1<<31 - 1]byte)(data))[sizeOfSetHeader:flsh.Length],
+		Records: (*(*[1<<31 - 1]byte)(data))[sizeOfFlowSetHeader:flsh.Length],
 	}
 
 	packet.FlowSets = append(packet.FlowSets, fls)
 }
 
 // decodeTemplate decodes a template from `packet`
-func decodeTemplate(packet *Packet, end unsafe.Pointer, size uintptr) error {
-	min := uintptr(end) - size
-	for uintptr(end) > min {
-		headerPtr := unsafe.Pointer(uintptr(end) - sizeOfTemplateRecordHeader)
-
+func decodeTemplate(packet *Packet, p unsafe.Pointer, size uintptr) error {
+	min := uintptr(p) - size
+	for uintptr(p) > min {
+		p = unsafe.Pointer(uintptr(p) - sizeOfTemplateRecordHeader)
 		tmplRecs := &TemplateRecords{}
-		tmplRecs.Header = (*TemplateRecordHeader)(unsafe.Pointer(headerPtr))
-		tmplRecs.Packet = packet
+		tmplRecs.Header = (*TemplateRecordHeader)(unsafe.Pointer(p))
 		tmplRecs.Records = make([]*TemplateRecord, 0, numPreAllocRecs)
 
-		ptr := unsafe.Pointer(uintptr(headerPtr) - sizeOfTemplateRecordHeader)
+		if uintptr(p)-uintptr(tmplRecs.Header.FieldCount*uint16(sizeOfTemplateRecord)) < min {
+			return fmt.Errorf("invalid ipfix template: buffer underrun")
+		}
+
 		for i := uint16(0); i < tmplRecs.Header.FieldCount; i++ {
-			rec := (*TemplateRecord)(unsafe.Pointer(ptr))
+			p = unsafe.Pointer(uintptr(p) - sizeOfTemplateRecord)
+			rec := (*TemplateRecord)(unsafe.Pointer(p))
 
 			if rec.isEnterprise() {
-				return fmt.Errorf("Enterprise TLV currently not supported")
+				return fmt.Errorf("enterprise TLV currently not supported")
 			}
 
 			tmplRecs.Records = append(tmplRecs.Records, rec)
-			ptr = unsafe.Pointer(uintptr(ptr) - sizeOfTemplateRecord)
 		}
 
 		packet.Templates = append(packet.Templates, tmplRecs)
-		end = unsafe.Pointer(uintptr(end) - uintptr(tmplRecs.Header.FieldCount)*sizeOfTemplateRecord - sizeOfTemplateRecordHeader)
+	}
+
+	return nil
+}
+
+// decodeOptionsTemplate decodes a template from `packet`
+func decodeOptionsTemplate(packet *Packet, p unsafe.Pointer, size uintptr) error {
+	min := uintptr(p) - size
+	for uintptr(p) > min {
+		p = unsafe.Pointer(uintptr(p) - sizeOfOptionsTemplateRecordHeader)
+		optTmplRecs := &OptionsTemplateRecords{}
+		optTmplRecs.Header = (*OptionsTemplateRecordHeader)(unsafe.Pointer(p))
+		optTmplRecs.Records = make([]*TemplateRecord, 0, numPreAllocRecs)
+
+		if uintptr(p)-uintptr(optTmplRecs.Header.TotelFieldCount*uint16(sizeOfTemplateRecord)) < min {
+			return fmt.Errorf("invalid ipfix options template: buffer underrun")
+		}
+
+		for i := uint16(0); i < optTmplRecs.Header.TotelFieldCount; i++ {
+			p = unsafe.Pointer(uintptr(p) - sizeOfTemplateRecord)
+			rec := (*TemplateRecord)(unsafe.Pointer(p))
+			if rec.isEnterprise() {
+				return fmt.Errorf("enterprise TLV currently not supported")
+			}
+
+			optTmplRecs.Records = append(optTmplRecs.Records, rec)
+		}
+
+		packet.OptionsTemplateRecords = append(packet.OptionsTemplateRecords, optTmplRecs)
 	}
 
 	return nil

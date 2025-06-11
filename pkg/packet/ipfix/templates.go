@@ -44,13 +44,9 @@ type TemplateRecords struct {
 
 	// List of fields in this Template Record.
 	Records []*TemplateRecord
-
-	Packet *Packet
-
-	Values [][]byte
 }
 
-//TemplateRecord represents a Template Record as described in RFC3954
+// TemplateRecord represents a Template Record as described in RFC3954
 type TemplateRecord struct {
 	// The length (in bytes) of the field.
 	Length uint16
@@ -76,7 +72,7 @@ var sizeOfTemplateRecord = unsafe.Sizeof(TemplateRecord{})
 
 // DecodeFlowSet uses current TemplateRecord to decode data in Data FlowSet to
 // a list of Flow Data Records.
-func (dtpl *TemplateRecords) DecodeFlowSet(set Set) (list []FlowDataRecord) {
+func (dtpl *TemplateRecords) DecodeFlowSet(set FlowSet) (list []FlowDataRecord) {
 	if set.Header.SetID != dtpl.Header.TemplateID {
 		return nil
 	}
