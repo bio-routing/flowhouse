@@ -46,28 +46,31 @@ type fieldMap struct {
 	dstMask                int
 	srcMask6               int
 	dstMask6               int
+	samplingInterval       int
 }
 
 type IPFIXServer struct {
 	// tmplCache is used to save received flow templates
 	// for later lookup in order to decode netflow packets
-	tmplCache  *templateCache
-	conn       *net.UDPConn
-	ifResolver InterfaceResolver
-	output     chan []*flow.Flow
-	wg         sync.WaitGroup
-	stopCh     chan struct{}
-	aggregator *aggregator.Aggregator
+	tmplCache       *templateCache
+	conn            *net.UDPConn
+	ifResolver      InterfaceResolver
+	output          chan []*flow.Flow
+	wg              sync.WaitGroup
+	stopCh          chan struct{}
+	aggregator      *aggregator.Aggregator
+	sampleRateCache *sampleRateCache
 }
 
 // New creates and starts a new `IPFIXServer` instance
 func New(listen string, numReaders int, output chan []*flow.Flow, ifResolver InterfaceResolver) (*IPFIXServer, error) {
 	ipf := &IPFIXServer{
-		tmplCache:  newTemplateCache(),
-		ifResolver: ifResolver,
-		stopCh:     make(chan struct{}),
-		output:     output,
-		aggregator: aggregator.New(output),
+		tmplCache:       newTemplateCache(),
+		ifResolver:      ifResolver,
+		stopCh:          make(chan struct{}),
+		output:          output,
+		aggregator:      aggregator.New(output),
+		sampleRateCache: newSampleRateCache(),
 	}
 
 	addr, err := net.ResolveUDPAddr("udp", listen)
@@ -156,44 +159,45 @@ func (ipf *IPFIXServer) processPacket(agent bnet.IP, buffer []byte) {
 	}
 
 	ipf.updateTemplateCache(agent, pkt)
-	ipf.processFlowSets(agent, pkt.Header.DomainID, pkt.DataFlowSets(), int64(pkt.Header.ExportTime), pkt)
+	ipf.processFlowSets(agent, pkt.Header.DomainID, pkt.DataFlowSets(), int64(pkt.Header.ExportTime))
 }
 
 // processFlowSets iterates over flowSets and calls processFlowSet() for each flow set
-func (ipf *IPFIXServer) processFlowSets(remote bnet.IP, domainID uint32, flowSets []*ipfix.FlowSet, ts int64, packet *ipfix.Packet) {
+func (ipf *IPFIXServer) processFlowSets(remote bnet.IP, observationDomainID uint32, flowSets []*ipfix.FlowSet, ts int64) {
 	addr := remote.String()
-	keyParts := make([]string, 3)
 	for _, set := range flowSets {
-		template := ipf.tmplCache.get(remote, domainID, set.Header.SetID)
+		template, isOpts := ipf.tmplCache.get(remote, observationDomainID, set.Header.SetID)
 
 		if template == nil {
-			templateKey := makeTemplateKey(addr, domainID, set.Header.SetID, keyParts)
+			templateKey := makeTemplateKey(addr, observationDomainID, set.Header.SetID)
 			log.Debugf("Template for given FlowSet not found: %s", templateKey)
 
 			continue
 		}
 
-		records := template.DecodeFlowSet(*set)
+		records := ipfix.DecodeFlowSet(*set, template)
 		if records == nil {
 			log.Warning("Error decoding FlowSet")
 			continue
 		}
 
-		ipf.processFlowSet(template, records, remote, ts, packet)
+		ipf.processFlowSet(template, records, remote, observationDomainID, ts, isOpts)
 	}
 }
 
 // process generates Flow elements from records and pushes them into the `receiver` channel
-func (ipf *IPFIXServer) processFlowSet(template *ipfix.TemplateRecords, records []ipfix.FlowDataRecord, agent bnet.IP, ts int64, packet *ipfix.Packet) {
+func (ipf *IPFIXServer) processFlowSet(template []*ipfix.TemplateRecord, records []ipfix.FlowDataRecord, agent bnet.IP, observationDomainID uint32, ts int64, isOpts bool) {
 	fm := generateFieldMap(template)
 
 	for _, r := range records {
-		/*if template.OptionScopes != nil {
-			if fm.samplingPacketInterval >= 0 {
-				ipf.sampleRateCache.Set(agent, uint64(convert.Uint32(r.Values[fm.samplingPacketInterval])))
+		if isOpts {
+			if fm.samplingInterval > 0 {
+				sampleRate := convert.Uint32(r.Values[fm.samplingInterval])
+				ipf.sampleRateCache.set(agent, observationDomainID, sampleRate)
 			}
+
 			continue
-		}*/
+		}
 
 		fl := &flow.Flow{
 			Agent:     agent,
@@ -284,13 +288,15 @@ func (ipf *IPFIXServer) processFlowSet(template *ipfix.TemplateRecords, records 
 			fl.DstPfx = bnet.NewPfx(*p.BaseAddr(), mask)
 		}
 
+		fl.Samplerate = uint64(ipf.sampleRateCache.get(agent, observationDomainID))
+
 		ipf.aggregator.GetIngress() <- fl
 	}
 }
 
 // generateFieldMap processes a TemplateRecord and populates a fieldMap accordingly
 // the FieldMap can then be used to read fields from a flow
-func generateFieldMap(template *ipfix.TemplateRecords) *fieldMap {
+func generateFieldMap(template []*ipfix.TemplateRecord) *fieldMap {
 	fm := fieldMap{
 		srcAddr:                -1,
 		dstAddr:                -1,
@@ -313,10 +319,11 @@ func generateFieldMap(template *ipfix.TemplateRecords) *fieldMap {
 		dstMask:                -1,
 		srcMask6:               -1,
 		dstMask6:               -1,
+		samplingInterval:       -1,
 	}
 
 	i := -1
-	for _, f := range template.Records {
+	for _, f := range template {
 		i++
 
 		switch f.Type {
@@ -364,6 +371,8 @@ func generateFieldMap(template *ipfix.TemplateRecords) *fieldMap {
 			fm.srcMask6 = i
 		case ipfix.IPv6DstMask:
 			fm.dstMask6 = i
+		case ipfix.SamplingInterval:
+			fm.samplingInterval = i
 		}
 	}
 
@@ -374,14 +383,21 @@ func generateFieldMap(template *ipfix.TemplateRecords) *fieldMap {
 func (ipf *IPFIXServer) updateTemplateCache(remote bnet.IP, p *ipfix.Packet) {
 	templRecs := p.GetTemplateRecords()
 	for _, tr := range templRecs {
-		ipf.tmplCache.set(remote, p.Header.DomainID, tr.Header.TemplateID, *tr)
+		ipf.tmplCache.set(remote, p.Header.DomainID, tr.Header.TemplateID, tr.Records, false)
+	}
+
+	optTemplRecs := p.GetOptionTemplateRecords()
+	for _, tr := range optTemplRecs {
+		ipf.tmplCache.set(remote, p.Header.DomainID, tr.Header.TemplateID, tr.Records, true)
 	}
 }
 
 // makeTemplateKey creates a string of the 3 tuple router address, source id and template id
-func makeTemplateKey(addr string, sourceID uint32, templateID uint16, keyParts []string) string {
-	keyParts[0] = addr
-	keyParts[1] = strconv.Itoa(int(sourceID))
-	keyParts[2] = strconv.Itoa(int(templateID))
+func makeTemplateKey(addr string, sourceID uint32, templateID uint16) string {
+	keyParts := []string{
+		addr,
+		strconv.Itoa(int(sourceID)),
+		strconv.Itoa(int(templateID)),
+	}
 	return strings.Join(keyParts, "|")
 }
