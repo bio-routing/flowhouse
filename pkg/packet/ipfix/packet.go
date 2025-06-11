@@ -218,6 +218,10 @@ func (p *Packet) GetTemplateRecords() []*TemplateRecords {
 	return p.Templates
 }
 
+func (p *Packet) GetOptionTemplateRecords() []*OptionsTemplateRecords {
+	return p.OptionsTemplateRecords
+}
+
 // DataFlowSets generate a list of all Data FlowSets in the packet. If matched
 // with appropriate templates Data FlowSets can be decoded to Data Records or
 // Options Data Records.

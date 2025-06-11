@@ -72,10 +72,7 @@ var sizeOfTemplateRecord = unsafe.Sizeof(TemplateRecord{})
 
 // DecodeFlowSet uses current TemplateRecord to decode data in Data FlowSet to
 // a list of Flow Data Records.
-func (dtpl *TemplateRecords) DecodeFlowSet(set FlowSet) (list []FlowDataRecord) {
-	if set.Header.SetID != dtpl.Header.TemplateID {
-		return nil
-	}
+func DecodeFlowSet(set FlowSet, templateRecords []*TemplateRecord) (list []FlowDataRecord) {
 	var record FlowDataRecord
 
 	// Pre-allocate some room for flows
@@ -88,13 +85,13 @@ func (dtpl *TemplateRecords) DecodeFlowSet(set FlowSet) (list []FlowDataRecord) 
 	count := 0
 
 	for n >= 4 {
-		record.Values, count = parseFieldValues(set.Records[0:n], dtpl.Records)
+		record.Values, count = parseFieldValues(set.Records[0:n], templateRecords)
 		if record.Values == nil {
 			return
 		}
 
 		list = append(list, record)
-		n = n - count
+		n -= count
 	}
 
 	return list
