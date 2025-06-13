@@ -15,6 +15,8 @@ import (
 
 	"github.com/bio-routing/flowhouse/pkg/clickhousegw"
 	"github.com/pkg/errors"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 
 	bnet "github.com/bio-routing/bio-rd/net"
 	log "github.com/sirupsen/logrus"
@@ -142,10 +144,9 @@ type Field struct {
 
 // Dict connects a fields with a dict
 type Dict struct {
-	Field string   `yaml:"field"`
-	Dict  string   `yaml:"dict"`
-	Expr  string   `yaml:"expr"`
-	Keys  []string `yaml:"keys"`
+	Field string `yaml:"field"`
+	Dict  string `yaml:"dict"`
+	Expr  string `yaml:"expr"`
 }
 
 func (d Dicts) getDict(field string) *Dict {
@@ -549,23 +550,12 @@ func (fe *Frontend) resolveDictIfNecessary(fieldName string) (string, error) {
 		return "", fmt.Errorf("Dict for field %s not found", fieldName)
 	}
 
-	params := make([]interface{}, 0)
-	if len(d.Keys) == 0 {
-		params = append(params, flowsFieldName)
-	} else {
-		for _, k := range d.Keys {
-			params = append(params, k)
-		}
-	}
-
-	expr := fmt.Sprintf(d.Expr, params...)
-
 	dictName := d.Dict
 	if !strings.Contains(dictName, ".") {
 		dictName = fe.chgw.GetDatabaseName() + "." + dictName
 	}
 
-	return fmt.Sprintf("dictGet('%s', '%s', %s)", dictName, relatedFieldsName, expr), nil
+	return fmt.Sprintf("dictGet('%s', '%s', %s)", dictName, relatedFieldsName, d.Expr), nil
 }
 
 func parseFieldName(name string) (flowsFieldName, relatedFieldsName string) {
@@ -591,6 +581,8 @@ func (fe *Frontend) dissectIndexQuery(values url.Values) map[string][]string {
 }
 
 func (fe *Frontend) getIndexView() (*IndexView, error) {
+	caser := cases.Title(language.English)
+
 	ret := &IndexView{
 		FieldGroups: make([]*FieldGroup, 0),
 	}
@@ -620,9 +612,10 @@ func (fe *Frontend) getIndexView() (*IndexView, error) {
 			}
 
 			for i := 0; i < len(dictFields); i++ {
+				label := strings.Replace(dictFields[i], "_", " ", -1)
 				f := &Field{
 					Name:  fmt.Sprintf("%s__%s", field.Name, dictFields[i]),
-					Label: fmt.Sprintf("%s %s", field.Label, strings.Title(dictFields[i])),
+					Label: fmt.Sprintf("%s %s", field.Label, caser.String(label)),
 				}
 				fg.Fields = append(fg.Fields, f)
 
@@ -696,7 +689,7 @@ func (fe *Frontend) GetDictValues(w http.ResponseWriter, r *http.Request) {
 func parseDictValueRequest(input string) (string, string, error) {
 	parts := strings.Split(input, "__")
 	if len(parts) != 2 {
-		return "", "", fmt.Errorf("Invalid format")
+		return "", "", fmt.Errorf("invalid format")
 	}
 
 	return parts[0], parts[1], nil
