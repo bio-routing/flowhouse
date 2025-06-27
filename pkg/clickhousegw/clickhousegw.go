@@ -13,6 +13,7 @@ import (
 	"github.com/ClickHouse/clickhouse-go"
 
 	bnet "github.com/bio-routing/bio-rd/net"
+	log "github.com/sirupsen/logrus"
 )
 
 const tableName = "flows"
@@ -60,7 +61,7 @@ func New(cfg *ClickhouseConfig) (*ClickHouseGateway, error) {
 
 	err = chgw.createFlowsSchemaIfNotExists()
 	if err != nil {
-		return nil, errors.Wrap(err, "Unable to create flows schema")
+		log.Errorf("Unable to create flows schema: %v", err)
 	}
 
 	return chgw, nil
