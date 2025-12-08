@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	AggregationWindowSeconds = 10
+	aggregationWindow = 10 * time.Second
 )
 
 type Key struct {
@@ -21,11 +21,12 @@ type Key struct {
 }
 
 type Aggregator struct {
-	data                   map[Key]*flow.Flow
-	stopCh                 chan struct{}
-	ingress                chan *flow.Flow
-	output                 chan []*flow.Flow
-	currentUnixTimeSeconds int64
+	data      map[Key]*flow.Flow
+	stopCh    chan struct{}
+	ingress   chan *flow.Flow
+	output    chan []*flow.Flow
+	lastFlush time.Time
+	timeNow   func() time.Time
 }
 
 func New(output chan []*flow.Flow) *Aggregator {
@@ -34,6 +35,7 @@ func New(output chan []*flow.Flow) *Aggregator {
 		stopCh:  make(chan struct{}),
 		ingress: make(chan *flow.Flow),
 		output:  output,
+		timeNow: time.Now,
 	}
 
 	go a.service()
@@ -77,15 +79,15 @@ func (a *Aggregator) service() {
 }
 
 func (a *Aggregator) Ingest(fl *flow.Flow) {
-	currentUnixTimeSeconds := time.Now().Unix()
-	currentUnixTimeSeconds -= currentUnixTimeSeconds % AggregationWindowSeconds
+	normalizedIngestTime := a.timeNow().Truncate(aggregationWindow)
 
-	if a.currentUnixTimeSeconds < currentUnixTimeSeconds {
+	timeSinceLastFlush := normalizedIngestTime.Sub(a.lastFlush)
+	if timeSinceLastFlush >= aggregationWindow {
 		a.flush()
-		a.currentUnixTimeSeconds = currentUnixTimeSeconds
+		a.lastFlush = normalizedIngestTime
 	}
 
-	fl.Timestamp = currentUnixTimeSeconds
+	fl.Timestamp = normalizedIngestTime.Unix()
 	a.add(fl)
 }
 
