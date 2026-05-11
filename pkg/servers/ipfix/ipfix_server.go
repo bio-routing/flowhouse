@@ -237,15 +237,21 @@ func (ipf *IPFIXServer) processFlowSet(template []*ipfix.TemplateRecord, records
 		}
 
 		if fm.srcAddr >= 0 {
-			fl.SrcAddr = bnet.IPv4FromBytes(convert.Reverse(r.Values[fm.srcAddr]))
+			if ip, err := bnet.IPFromBytes(convert.Reverse(r.Values[fm.srcAddr])); err == nil {
+				fl.SrcAddr = ip
+			}
 		}
 
 		if fm.dstAddr >= 0 {
-			fl.DstAddr = bnet.IPv4FromBytes(convert.Reverse(r.Values[fm.dstAddr]))
+			if ip, err := bnet.IPFromBytes(convert.Reverse(r.Values[fm.dstAddr])); err == nil {
+				fl.DstAddr = ip
+			}
 		}
 
 		if fm.nextHop >= 0 {
-			fl.NextHop = bnet.IPv4FromBytes(convert.Reverse(r.Values[fm.nextHop]))
+			if ip, err := bnet.IPFromBytes(convert.Reverse(r.Values[fm.nextHop])); err == nil {
+				fl.NextHop = ip
+			}
 		}
 
 		if fm.srcTos >= 0 {
@@ -260,31 +266,27 @@ func (ipf *IPFIXServer) processFlowSet(template []*ipfix.TemplateRecord, records
 			fl.SrcAs = convert.Uint32(r.Values[fm.srcAsn])
 		}
 
-		if fm.srcMask > 0 {
+		if fm.srcMask >= 0 {
 			mask := uint8(r.Values[fm.srcMask][0])
 			p := bnet.NewPfx(fl.SrcAddr, mask)
-			p.BaseAddr()
 			fl.SrcPfx = bnet.NewPfx(*p.BaseAddr(), mask)
 		}
 
-		if fm.dstMask > 0 {
+		if fm.dstMask >= 0 {
 			mask := uint8(r.Values[fm.dstMask][0])
 			p := bnet.NewPfx(fl.DstAddr, mask)
-			p.BaseAddr()
 			fl.DstPfx = bnet.NewPfx(*p.BaseAddr(), mask)
 		}
 
-		if fm.srcMask6 > 0 {
+		if fm.srcMask6 >= 0 {
 			mask := uint8(r.Values[fm.srcMask6][0])
 			p := bnet.NewPfx(fl.SrcAddr, mask)
-			p.BaseAddr()
 			fl.SrcPfx = bnet.NewPfx(*p.BaseAddr(), mask)
 		}
 
-		if fm.dstMask6 > 0 {
+		if fm.dstMask6 >= 0 {
 			mask := uint8(r.Values[fm.dstMask6][0])
 			p := bnet.NewPfx(fl.DstAddr, mask)
-			p.BaseAddr()
 			fl.DstPfx = bnet.NewPfx(*p.BaseAddr(), mask)
 		}
 
